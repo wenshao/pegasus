@@ -2,6 +2,7 @@ package com.alibaba.sqlwall.net;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.ByteOrder;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -11,25 +12,18 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.bootstrap.ServerBootstrap;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.buffer.HeapChannelBufferFactory;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
-import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
+import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-
-import com.alibaba.sqlwall.net.protocol.mysql.MySqlDecoder;
-import com.alibaba.sqlwall.net.protocol.mysql.MySqlEncoder;
 
 public class MySqlProxyServer {
 
-    private static Log                    LOG               = LogFactory.getLog(MySqlProxyServer.class);
+    static Log                            LOG               = LogFactory.getLog(MySqlProxyServer.class);
 
     private ServerBootstrap               bootstrap;
-    private ClientBootstrap               client;
     private ThreadPoolExecutor            bossExecutor;
     private ThreadPoolExecutor            workerExecutor;
 
@@ -37,15 +31,16 @@ public class MySqlProxyServer {
 
     private NioServerSocketChannelFactory channelFactory;
 
-    private final AtomicLong              acceptedCount     = new AtomicLong();
-    private final AtomicLong              closedCount       = new AtomicLong();
+    final AtomicLong                      acceptedCount     = new AtomicLong();
+    final AtomicLong                      closedCount       = new AtomicLong();
     private final AtomicLong              sessionCount      = new AtomicLong();
     private final AtomicLong              runningMax        = new AtomicLong();
 
-    private MySqlDecoder                  decoder           = new MySqlDecoder();
-    private MySqlEncoder                  encoder           = new MySqlEncoder();
+    private FrontDecoder                  decoder           = new FrontDecoder();
 
     private int                           port              = 3306;
+
+    private ClientBootstrap               client;
 
     public void start() {
         try {
@@ -64,13 +59,13 @@ public class MySqlProxyServer {
 
         channelFactory = new NioServerSocketChannelFactory(bossExecutor, workerExecutor, workerThreadCount);
         bootstrap = new ServerBootstrap(channelFactory);
+        bootstrap.setOption("child.bufferFactory", new HeapChannelBufferFactory(ByteOrder.LITTLE_ENDIAN));
 
         bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
 
             public ChannelPipeline getPipeline() throws Exception {
-                return Channels.pipeline(encoder, //
-                                         decoder, //
-                                         new NettyServerHanlder() //
+                return Channels.pipeline(decoder, //
+                                         new FrontHanlder(MySqlProxyServer.this) //
                 );
             }
 
@@ -85,49 +80,21 @@ public class MySqlProxyServer {
         if (LOG.isInfoEnabled()) {
             LOG.info("Leviathan Server started.");
         }
-        
+
+        client = new ClientBootstrap();
+        client.setOption("bufferFactory", new HeapChannelBufferFactory(ByteOrder.LITTLE_ENDIAN));
+        client.setPipelineFactory(new BackendPipelineFactory());
+        client.setFactory(new NioClientSocketChannelFactory());
+    }
+
+    public ClientBootstrap getBackendBootstrap() {
+        return client;
     }
 
     public void stop() {
         bootstrap.shutdown();
         if (LOG.isInfoEnabled()) {
             LOG.info("Leviathan Server stoped.");
-        }
-    }
-
-    public class NettyServerHanlder extends SimpleChannelUpstreamHandler {
-
-        public void channelOpen(ChannelHandlerContext ctx, ChannelStateEvent e) {
-            long acceptedCount = MySqlProxyServer.this.acceptedCount.incrementAndGet();
-            incrementSessionCount();
-
-            if (LOG.isDebugEnabled()) {
-                Channel channel = ctx.getChannel();
-                LOG.debug("accepted " + channel.getRemoteAddress() + " " + acceptedCount);
-            }
-            ctx.sendUpstream(e);
-        }
-
-        public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-            closedCount.incrementAndGet();
-            decrementSessionCount();
-
-            ctx.sendUpstream(e);
-        }
-
-        public void channelBound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-            ctx.sendUpstream(e);
-        }
-
-        public void channelUnbound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-            ctx.sendUpstream(e);
-        }
-
-        public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-            ctx.sendUpstream(e);
-
-            String message = (String) e.getMessage();
-            ctx.getChannel().write(message);
         }
     }
 
@@ -170,16 +137,7 @@ public class MySqlProxyServer {
         return this.decoder.getReceivedMessageCount();
     }
 
-    public long getSentBytes() {
-        return this.encoder.getSentBytes();
-    }
-
-    public long getSentMessageCount() {
-        return this.encoder.getSentMessageCount();
-    }
-
     public void resetStat() {
-        this.encoder.resetStat();
         this.decoder.resetStat();
 
         this.acceptedCount.set(0);

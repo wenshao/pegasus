@@ -1,4 +1,4 @@
-package com.alibaba.sqlwall.net.protocol.mysql;
+package com.alibaba.sqlwall.net;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -9,22 +9,19 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 
-public class MySqlDecoder extends LengthFieldBasedFrameDecoder {
-    private final static Log LOG                  = LogFactory.getLog(MySqlDecoder.class);
-    
-    private final static int maxFrameLength       = 1024 * 1024 * 32;     // 1m
+public class FrontDecoder extends LengthFieldBasedFrameDecoder {
+
+    private final static Log LOG                  = LogFactory.getLog(FrontDecoder.class);
+
+    private final static int maxFrameLength       = 1024 * 1024 * 32;                     // 1m
     private final static int lengthFieldOffset    = 0;
     private final static int lengthFieldLength    = 3;
 
     private final AtomicLong receivedBytes        = new AtomicLong();
     private final AtomicLong receivedMessageCount = new AtomicLong();
 
-    public MySqlDecoder(){
-        super(maxFrameLength, lengthFieldOffset, lengthFieldLength, 4, 0);
-    }
-
-    public MySqlDecoder(int maxFrameLength, int lengthFieldOffset, int lengthFieldLength){
-        super(maxFrameLength, lengthFieldOffset, lengthFieldLength);
+    public FrontDecoder(){
+        super(maxFrameLength, lengthFieldOffset, lengthFieldLength, 1, 0);
     }
 
     public long getRecevedBytes() {
@@ -57,8 +54,8 @@ public class MySqlDecoder extends LengthFieldBasedFrameDecoder {
 
         receivedMessageCount.incrementAndGet();
 
-        byte[] bytes = frame.array();
-
-        throw new Exception("not support format");
+        ProxySession session = (ProxySession) channel.getAttachment();
+        session.getBackendChannel().write(frame);
+        return null;
     }
 }
