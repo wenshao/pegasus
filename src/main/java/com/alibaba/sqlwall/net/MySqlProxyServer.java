@@ -45,7 +45,7 @@ public class MySqlProxyServer {
     private MySqlDecoder                  decoder           = new MySqlDecoder();
     private MySqlEncoder                  encoder           = new MySqlEncoder();
 
-    private int                           port              = 7002;
+    private int                           port              = 3306;
 
     public void start() {
         try {
