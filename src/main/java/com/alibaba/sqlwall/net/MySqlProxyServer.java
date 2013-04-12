@@ -38,19 +38,19 @@ public class MySqlProxyServer {
 
     private FrontDecoder                  decoder           = new FrontDecoder();
 
-    private int                           port              = 3306;
-
     private ClientBootstrap               client;
 
+    private String                        remoteHost;
+    private int                           remotePort;
+
+    private int                           listenPort        = 3306;
+
+    public MySqlProxyServer(String remoteHost, int remotePort){
+        this.remoteHost = remoteHost;
+        this.remotePort = remotePort;
+    }
+
     public void start() {
-        try {
-            String prop = System.getProperty("leviathan.port");
-            if (prop != null) {
-                port = Integer.parseInt(prop);
-            }
-        } catch (Exception e) {
-            LOG.error("illegal jvm argument leviathan.port", e);
-        }
 
         bossExecutor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
                                               new SynchronousQueue<Runnable>());
@@ -71,7 +71,7 @@ public class MySqlProxyServer {
 
         });
 
-        SocketAddress address = new InetSocketAddress("0.0.0.0", port);
+        SocketAddress address = new InetSocketAddress("0.0.0.0", listenPort);
         bootstrap.bind(address);
         if (LOG.isInfoEnabled()) {
             LOG.info("Leviathan Server listening " + address);
@@ -89,6 +89,10 @@ public class MySqlProxyServer {
 
     public ClientBootstrap getBackendBootstrap() {
         return client;
+    }
+
+    public void connectRemote() {
+        client.connect(new InetSocketAddress(remoteHost, remotePort));
     }
 
     public void stop() {

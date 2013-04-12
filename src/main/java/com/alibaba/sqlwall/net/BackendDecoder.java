@@ -5,10 +5,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
+
+import com.alibaba.cobar.mysql.CharsetUtil;
+import com.alibaba.cobar.net.mysql.HandshakePacket;
 
 public class BackendDecoder extends LengthFieldBasedFrameDecoder {
 
@@ -54,6 +56,26 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
 
         if (frame == null) {
             return null;
+        }
+
+        byte packetId = frame.getByte(3);
+
+        if (session.getPhase() == ProxySession.PHASE_AUTH) {
+            if (packetId == 0) {
+                HandshakePacket packet = new HandshakePacket();
+                packet.read(frame.array());
+
+                byte charsetIndex = packet.serverCharsetIndex;
+                String charset = CharsetUtil.getCharset(charsetIndex);
+                session.setCharset(charset);
+            } else if (packetId == 2) {
+                byte status = frame.getByte(4);
+                if (status == 0) {
+                    session.setPhase(ProxySession.PHASE_COMMAND);
+                } else if (status == (byte) 0xFF) {
+                    session.setPhase(ProxySession.PHASE_AUTH_ERROR);
+                }
+            }
         }
 
         receivedMessageCount.incrementAndGet();

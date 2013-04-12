@@ -1,7 +1,5 @@
 package com.alibaba.sqlwall.net;
 
-import java.net.InetSocketAddress;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.channel.Channel;
@@ -9,8 +7,6 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
-
-import com.alibaba.sqlwall.net.protocol.mysql.ThreadContext;
 
 public class FrontHanlder extends SimpleChannelUpstreamHandler {
 
@@ -36,7 +32,7 @@ public class FrontHanlder extends SimpleChannelUpstreamHandler {
         ProxySession.setCurrent(session);
         channel.setAttachment(session);
 
-        proxyServer.getBackendBootstrap().connect(new InetSocketAddress("hbase-01", 3306));
+        proxyServer.connectRemote();
 
         ctx.sendUpstream(e);
     }
