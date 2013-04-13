@@ -9,7 +9,7 @@ import java.util.Properties;
 
 import junit.framework.TestCase;
 
-import com.alibaba.sqlwall.net.MySqlProxyServer;
+import com.alibaba.sqlwall.mysql.MySqlProxyServer;
 
 public class MySqlConnectTest extends TestCase {
 

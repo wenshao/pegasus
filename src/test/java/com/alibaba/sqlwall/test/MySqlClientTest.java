@@ -2,7 +2,7 @@ package com.alibaba.sqlwall.test;
 
 import junit.framework.TestCase;
 
-import com.alibaba.sqlwall.net.MySqlClient;
+import com.alibaba.sqlwall.mysql.MySqlClient;
 
 public class MySqlClientTest extends TestCase {
 	public void test_client() throws Exception {
