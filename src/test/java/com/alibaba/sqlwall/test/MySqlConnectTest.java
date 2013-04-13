@@ -22,6 +22,7 @@ public class MySqlConnectTest extends TestCase {
         Properties info = new Properties();
         info.put("user", "root");
         info.put("password", "root");
+        info.put("useServerPrepStmts", "true");
         Connection conn = driver.connect("jdbc:mysql://127.0.0.1:3306/mysql", info);
 
         {

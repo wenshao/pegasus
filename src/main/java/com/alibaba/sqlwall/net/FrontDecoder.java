@@ -9,8 +9,8 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 
-import com.alibaba.cobar.net.mysql.AuthPacket;
-import com.alibaba.cobar.net.mysql.CommandPacket;
+import com.alibaba.sqlwall.net.protocol.mysql.AuthPacket;
+import com.alibaba.sqlwall.net.protocol.mysql.CommandPacket;
 
 public class FrontDecoder extends LengthFieldBasedFrameDecoder {
 
@@ -69,16 +69,13 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
             if (packetId == 0) {
                 final byte COM_QUERY = 0x03;
                 final byte COM_STMT_PREPARE = 0x16;
-                final byte COM_STMT_EXECUTE = 0x17;
 
                 CommandPacket packet = new CommandPacket();
                 packet.read(frame.array());
-                int command = packet.command;
-                if (command == COM_QUERY) {
+                byte command = packet.command;
+                if (command == COM_QUERY || command == COM_STMT_PREPARE) {
                     String sql = new String(packet.arg, session.getCharset());
-                    if (sql != null) {
-                        sql.hashCode();
-                    }
+                    System.out.println(sql);
                 }
             }
             // CommandPacket

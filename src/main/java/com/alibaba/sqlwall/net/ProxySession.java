@@ -64,4 +64,8 @@ public class ProxySession {
     public static ProxySession current() {
         return currentLocal.get();
     }
+    
+    public boolean check(String sql) {
+        return true;
+    }
 }

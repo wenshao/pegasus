@@ -9,8 +9,8 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 
-import com.alibaba.cobar.mysql.CharsetUtil;
-import com.alibaba.cobar.net.mysql.HandshakePacket;
+import com.alibaba.sqlwall.net.protocol.mysql.CharsetUtil;
+import com.alibaba.sqlwall.net.protocol.mysql.HandshakePacket;
 
 public class BackendDecoder extends LengthFieldBasedFrameDecoder {
 
@@ -76,6 +76,8 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                     session.setPhase(ProxySession.PHASE_AUTH_ERROR);
                 }
             }
+        } else if (session.getPhase() == ProxySession.PHASE_COMMAND) {
+            
         }
 
         receivedMessageCount.incrementAndGet();
