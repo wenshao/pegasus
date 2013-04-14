@@ -15,7 +15,6 @@
  */
 package com.alibaba.sqlwall.mysql.protocol.mysql;
 
-
 /**
  * From client to server whenever the client wants the server to do something.
  * 
@@ -75,8 +74,13 @@ package com.alibaba.sqlwall.mysql.protocol.mysql;
  */
 public class CommandPacket extends MySQLPacket {
 
-    public byte command;
-    public byte[] arg;
+    public final static byte COM_QUERY        = 0x03;
+    public final static byte COM_STMT_PREPARE = 0x16;
+    public final static byte COM_STMT_EXECUTE = 0x17;
+    public final static byte COM_STMT_CLOSE   = 0x19;
+
+    public byte              command;
+    public byte[]            arg;
 
     public void read(byte[] data) {
         MySQLMessage mm = new MySQLMessage(data);
@@ -85,6 +89,5 @@ public class CommandPacket extends MySQLPacket {
         command = mm.read();
         arg = mm.readBytes();
     }
-
 
 }

@@ -19,6 +19,9 @@ import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
+import com.alibaba.druid.wall.WallProvider;
+import com.alibaba.druid.wall.spi.MySqlWallProvider;
+
 public class MySqlProxyServer {
 
     static Log                            LOG               = LogFactory.getLog(MySqlProxyServer.class);
@@ -36,7 +39,7 @@ public class MySqlProxyServer {
     private final AtomicLong              sessionCount      = new AtomicLong();
     private final AtomicLong              runningMax        = new AtomicLong();
 
-    private FrontDecoder                  decoder           = new FrontDecoder();
+    private FrontDecoder                  decoder;
 
     private ClientBootstrap               client;
 
@@ -45,9 +48,18 @@ public class MySqlProxyServer {
 
     private int                           listenPort        = 3306;
 
+    private WallProvider                  wallProvider;
+
     public MySqlProxyServer(String remoteHost, int remotePort){
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
+
+        wallProvider = new MySqlWallProvider();
+        decoder = new FrontDecoder(wallProvider);
+    }
+
+    public WallProvider getWallProvider() {
+        return wallProvider;
     }
 
     public void start() {

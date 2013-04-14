@@ -44,14 +44,6 @@ public class FrontHanlder extends SimpleChannelUpstreamHandler {
         ctx.sendUpstream(e);
     }
 
-    public void channelBound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        ctx.sendUpstream(e);
-    }
-
-    public void channelUnbound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        ctx.sendUpstream(e);
-    }
-
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
         ctx.sendUpstream(e);
 

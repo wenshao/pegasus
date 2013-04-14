@@ -1,5 +1,11 @@
 package com.alibaba.sqlwall.mysql;
 
+import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_QUERY;
+import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_CLOSE;
+import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_EXECUTE;
+import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_PREPARE;
+import static com.alibaba.sqlwall.mysql.protocol.mysql.MySQLPacket.COM_QUIT;
+
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
@@ -9,6 +15,7 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 
+import com.alibaba.druid.wall.WallProvider;
 import com.alibaba.sqlwall.mysql.protocol.mysql.AuthPacket;
 import com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket;
 
@@ -22,9 +29,12 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
 
     private final AtomicLong receivedBytes        = new AtomicLong();
     private final AtomicLong receivedMessageCount = new AtomicLong();
+    
+    private final WallProvider provider;
 
-    public FrontDecoder(){
+    public FrontDecoder(WallProvider provider){
         super(maxFrameLength, lengthFieldOffset, lengthFieldLength, 1, 0);
+        this.provider = provider;
     }
 
     public long getRecevedBytes() {
@@ -64,21 +74,64 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
                 packet.read(frame.array());
 
                 session.setUser(packet.user);
+                System.out.println("<- req auth : " + packetId + " user " + packet.user);
+            } else {
+                System.out.println("<- req other : " + packetId);
             }
         } else if (session.getPhase() == ProxySession.PHASE_COMMAND) {
             if (packetId == 0) {
-                final byte COM_QUERY = 0x03;
-                final byte COM_STMT_PREPARE = 0x16;
 
                 CommandPacket packet = new CommandPacket();
                 packet.read(frame.array());
                 byte command = packet.command;
-                if (command == COM_QUERY || command == COM_STMT_PREPARE) {
-                    String sql = new String(packet.arg, session.getCharset());
-                    System.out.println(sql);
+
+                switch (command) {
+                    case COM_QUERY: {
+                        String sql = new String(packet.arg, session.getCharset());
+                        System.out.println("<- req cmd_query : " + sql);
+
+                        session.setState(ProxySession.STAT_CMD_QUERY);
+                        session.setFieldCount(-1);
+                        session.setFieldIndex(-1);
+                        session.setRowIndex(-1);
+                        
+                        provider.check(sql);
+                    }
+                        break;
+                    case COM_STMT_EXECUTE: {
+                        int stmtId = frame.getInt(5);
+                        session.setState(ProxySession.STAT_CMD_QUERY);
+                        session.setFieldCount(-1);
+                        session.setFieldIndex(-1);
+                        session.setRowIndex(-1);
+                        System.out.println("<- req cmd_stmt_exec " + stmtId);
+                    }
+                        break;
+                    case COM_STMT_PREPARE: {
+                        session.setState(ProxySession.STAT_CMD_STMT_PREPARE);
+                        String sql = new String(packet.arg, session.getCharset());
+                        System.out.println("<- req cmd_stmt_prepare : " + sql);
+                    }
+                        break;
+                    case COM_STMT_CLOSE: {
+                        int stmtId = frame.getInt(5);
+                        System.out.println("<- req cmd_stmt_close " + stmtId);
+                    }
+                        break;
+                    case COM_QUIT:
+                        System.out.println("<- req cmd_quit");
+                        break;
+                    default:
+                        System.out.println("<- req cmd : " + command);
+                        break;
                 }
+            } else {
+                System.out.println("<- req other : " + packetId);
             }
+
             // CommandPacket
+        } else {
+            System.out.println("<- req other : " + packetId);
         }
 
         receivedMessageCount.incrementAndGet();

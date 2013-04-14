@@ -9,6 +9,7 @@ import java.util.Properties;
 
 import junit.framework.TestCase;
 
+import com.alibaba.druid.util.JdbcUtils;
 import com.alibaba.sqlwall.mysql.MySqlProxyServer;
 
 public class MySqlConnectTest extends TestCase {
@@ -20,10 +21,10 @@ public class MySqlConnectTest extends TestCase {
         // jdbc:mysql://scuritytest.mysql.rds.aliyuncs.com:3306/mysql
         Driver driver = new com.mysql.jdbc.Driver();
         Properties info = new Properties();
-        info.put("user", "root");
-        info.put("password", "root");
+        info.put("user", "sonar");
+        info.put("password", "sonar");
         info.put("useServerPrepStmts", "true");
-        Connection conn = driver.connect("jdbc:mysql://127.0.0.1:3306/mysql", info);
+        Connection conn = driver.connect("jdbc:mysql://127.0.0.1:3306/sonar", info);
 
         {
             PreparedStatement stmt = conn.prepareStatement("SELECT ?");
@@ -37,13 +38,30 @@ public class MySqlConnectTest extends TestCase {
         }
         {
             Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery("select 1");
-            while (rs.next()) {
-
-            }
+            ResultSet rs = stmt.executeQuery("select * from users");
+            JdbcUtils.printResultSet(rs);
             rs.close();
             stmt.close();
         }
+        {
+            try {
+                conn.prepareStatement("select * from xx where fid = ?");
+            } catch (Exception e) {
+
+            }
+        }
+        conn.setAutoCommit(false);
+        {
+            Statement stmt = conn.createStatement();
+            try {
+                stmt.executeQuery("select * from xx");
+            } catch (Exception e) {
+
+            }
+            stmt.close();
+        }
+        conn.commit();
+        conn.rollback();
 
         conn.close();
     }
