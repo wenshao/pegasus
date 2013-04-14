@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.alibaba.sqlwall.mysql.protocol.mysql;
+package com.alibaba.sqlwall;
 
 /**
  * @author xianmao.hexm 2012-8-28
  */
-public class PreparedStatement {
+public class PStmtInfo {
 
-    private long id;
+    private int    id;
     private String statement;
-    private int columnsNumber;
-    private int parametersNumber;
-    private int[] parametersType;
+    private int    columnsNumber;
+    private int    parametersNumber;
+    private int[]  parametersType;
 
-    public PreparedStatement(long id, String statement, int columnsNumber, int parametersNumber) {
+    public PStmtInfo(int id, String statement, int columnsNumber, int parametersNumber){
         this.id = id;
         this.statement = statement;
         this.columnsNumber = columnsNumber;

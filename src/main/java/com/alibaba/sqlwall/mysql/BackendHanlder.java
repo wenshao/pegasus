@@ -4,6 +4,8 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 
+import com.alibaba.sqlwall.ProxySession;
+
 public class BackendHanlder extends SimpleChannelUpstreamHandler {
 
     private final ProxySession session;

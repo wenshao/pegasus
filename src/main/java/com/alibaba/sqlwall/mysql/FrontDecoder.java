@@ -1,10 +1,12 @@
 package com.alibaba.sqlwall.mysql;
 
+import static com.alibaba.sqlwall.ProxySessionStat.*;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_QUERY;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_CLOSE;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_EXECUTE;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_PREPARE;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.MySQLPacket.COM_QUIT;
+
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -16,20 +18,21 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 
 import com.alibaba.druid.wall.WallProvider;
+import com.alibaba.sqlwall.ProxySession;
 import com.alibaba.sqlwall.mysql.protocol.mysql.AuthPacket;
 import com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket;
 
 public class FrontDecoder extends LengthFieldBasedFrameDecoder {
 
-    private final static Log LOG                  = LogFactory.getLog(FrontDecoder.class);
+    private final static Log   LOG                  = LogFactory.getLog(FrontDecoder.class);
 
-    private final static int maxFrameLength       = 1024 * 1024 * 32;                     // 1m
-    private final static int lengthFieldOffset    = 0;
-    private final static int lengthFieldLength    = 3;
+    private final static int   maxFrameLength       = 1024 * 1024 * 32;                     // 1m
+    private final static int   lengthFieldOffset    = 0;
+    private final static int   lengthFieldLength    = 3;
 
-    private final AtomicLong receivedBytes        = new AtomicLong();
-    private final AtomicLong receivedMessageCount = new AtomicLong();
-    
+    private final AtomicLong   receivedBytes        = new AtomicLong();
+    private final AtomicLong   receivedMessageCount = new AtomicLong();
+
     private final WallProvider provider;
 
     public FrontDecoder(WallProvider provider){
@@ -68,6 +71,7 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
         int packetId = frame.getByte(3);
         ProxySession session = (ProxySession) channel.getAttachment();
 
+        session.setState(STAT_UNKOWN);
         if (session.getPhase() == ProxySession.PHASE_AUTH) {
             if (packetId == 1) {
                 AuthPacket packet = new AuthPacket();
@@ -83,38 +87,46 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
 
                 CommandPacket packet = new CommandPacket();
                 packet.read(frame.array());
-                byte command = packet.command;
-
+                final byte command = packet.command;
                 switch (command) {
                     case COM_QUERY: {
                         String sql = new String(packet.arg, session.getCharset());
+                        session.setSql(sql);
+
                         System.out.println("<- req cmd_query : " + sql);
 
-                        session.setState(ProxySession.STAT_CMD_QUERY);
-                        session.setFieldCount(-1);
-                        session.setFieldIndex(-1);
+                        long nano = System.nanoTime();
+                        session.setState(STAT_CMD_QUERY);
+                        session.setFieldCount((short) -1);
+                        session.setFieldIndex((short) -1);
                         session.setRowIndex(-1);
-                        
+                        session.setCommandQueryStartNano(nano);
+
                         provider.check(sql);
                     }
                         break;
                     case COM_STMT_EXECUTE: {
+                        long nano = System.nanoTime();
+                        
                         int stmtId = frame.getInt(5);
-                        session.setState(ProxySession.STAT_CMD_QUERY);
-                        session.setFieldCount(-1);
-                        session.setFieldIndex(-1);
+                        session.setState(STAT_CMD_QUERY);
+                        session.setFieldCount((short) -1);
+                        session.setFieldIndex((short) -1);
                         session.setRowIndex(-1);
+                        session.setCommandQueryStartNano(nano);
                         System.out.println("<- req cmd_stmt_exec " + stmtId);
                     }
                         break;
                     case COM_STMT_PREPARE: {
-                        session.setState(ProxySession.STAT_CMD_STMT_PREPARE);
+                        session.setState(STAT_CMD_STMT_PREPARE);
                         String sql = new String(packet.arg, session.getCharset());
+                        session.setSql(sql);
                         System.out.println("<- req cmd_stmt_prepare : " + sql);
                     }
                         break;
                     case COM_STMT_CLOSE: {
                         int stmtId = frame.getInt(5);
+                        session.remoteStmt(stmtId);
                         System.out.println("<- req cmd_stmt_close " + stmtId);
                     }
                         break;

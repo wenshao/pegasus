@@ -17,6 +17,8 @@ package com.alibaba.sqlwall.mysql.protocol.mysql;
 
 import java.io.UnsupportedEncodingException;
 
+import com.alibaba.sqlwall.PStmtInfo;
+
 
 /**
  * <pre>
@@ -78,9 +80,9 @@ public class ExecutePacket extends MySQLPacket {
     public byte[]               nullBitMap;
     public byte                 newParameterBoundFlag;
     public BindValue[]          values;
-    protected PreparedStatement pstmt;
+    protected PStmtInfo pstmt;
 
-    public ExecutePacket(PreparedStatement pstmt){
+    public ExecutePacket(PStmtInfo pstmt){
         this.pstmt = pstmt;
         this.values = new BindValue[pstmt.getParametersNumber()];
     }

@@ -1,5 +1,15 @@
 package com.alibaba.sqlwall.mysql;
 
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_QUERY;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_QUERY_RESP_EOF;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_QUERY_RESP_ERROR;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_QUERY_RESP_FIELD;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_QUERY_RESP_ROW;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_QUERY_RESP_ROW_EOF;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_STMT_PREPARE;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_STMT_PREPARE_RESP_COLUMN;
+import static com.alibaba.sqlwall.ProxySessionStat.*;
+
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
@@ -9,6 +19,8 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 
+import com.alibaba.sqlwall.PStmtInfo;
+import com.alibaba.sqlwall.ProxySession;
 import com.alibaba.sqlwall.mysql.protocol.mysql.CharsetUtil;
 import com.alibaba.sqlwall.mysql.protocol.mysql.EOFPacket;
 import com.alibaba.sqlwall.mysql.protocol.mysql.FieldPacket;
@@ -95,31 +107,31 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
             byte status = frame.getByte(4);
 
             switch (stat) {
-                case ProxySession.STAT_CMD_QUERY: {
+                case STAT_CMD_QUERY: {
                     if (status == ERROR) {
-                        System.out.println("-> resp error : " + packetId + " / " + status + ", " + len);
-                        session.setState(ProxySession.STAT_CMD_QUERY_RESP_ERROR);
+                        System.out.println("-> resp error : " + packetId + " / " + status + ", len " + len);
+                        session.setState(STAT_CMD_QUERY_RESP_ERROR);
                     } else if (status == EOF) {
                         EOFPacket packet = new EOFPacket();
                         packet.read(frame.array());
-                        System.out.println("-> resp eof : " + packetId + " / " + status + ", " + len);
+                        System.out.println("-> resp eof : " + packetId + " / " + status + ", len " + len);
                     } else if (status == OK) {
                         OkPacket packet = new OkPacket();
                         packet.read(frame.array());
-                        session.setState(ProxySession.STAT_CMD_QUERY_RESP_EOF);
-                        System.out.println("-> resp ok : " + packetId + " / " + status + ", " + len);
+                        session.setState(STAT_CMD_QUERY_RESP_EOF);
+                        System.out.println("-> resp ok : " + packetId + " / " + status + ", len " + len);
                     } else {
-                        byte fieldCount = frame.getByte(4);
+                        short fieldCount = frame.getUnsignedByte(4);
 
                         session.setFieldCount(fieldCount);
-                        session.setState(ProxySession.STAT_CMD_QUERY_RESP_FIELD);
+                        session.setState(STAT_CMD_QUERY_RESP_FIELD);
 
-                        System.out.println("-> resp field_count : " + packetId + " / " + status + ", " + len + " -> "
-                                           + fieldCount);
+                        System.out.println("-> resp field_count : " + packetId + ", status " + status + ", len " + len
+                                           + " -> " + fieldCount);
                     }
                 }
                     break;
-                case ProxySession.STAT_CMD_QUERY_RESP_FIELD: {
+                case STAT_CMD_QUERY_RESP_FIELD: {
                     int fieldCount = session.incrementAndGetFieldIndex();
 
                     if (fieldCount < session.getFieldCount()) {
@@ -133,13 +145,13 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                                            + len + ", " + status);
                     }
                     if (fieldCount == session.getFieldCount()) {
-                        session.setState(ProxySession.STAT_CMD_QUERY_RESP_ROW);
+                        session.setState(STAT_CMD_QUERY_RESP_ROW);
                     }
                 }
                     break;
-                case ProxySession.STAT_CMD_QUERY_RESP_ROW: {
+                case STAT_CMD_QUERY_RESP_ROW: {
                     if (status == EOF) {
-                        session.setState(ProxySession.STAT_CMD_QUERY_RESP_ROW_EOF);
+                        session.setState(STAT_CMD_QUERY_RESP_ROW_EOF);
                         System.out.println("-> resp row eof " + packetId + ", " + status);
                     } else {
                         int rowCount = session.incrementAndGetRowIndex();
@@ -147,22 +159,38 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                     }
                 }
                     break;
-                case ProxySession.STAT_CMD_STMT_PREPARE: {
+                case STAT_CMD_STMT_PREPARE: {
                     if (status == OK) {
-                        session.setState(ProxySession.STAT_CMD_STMT_PREPARE_RESP_COLUMN);
-                        short columnCount = frame.getShort(5);
-                        System.out.println("-> resp stmt_prepare : " + packetId + ", columsn " + columnCount);
+                        session.setState(STAT_CMD_STMT_PREPARE_RESP_PARAM);
+                        int stmtId = frame.getInt(5);
+                        int columns = frame.getUnsignedShort(9);
+                        int numberOfParams = frame.getUnsignedShort(11);
+
+                        PStmtInfo stmtInfo = new PStmtInfo(stmtId, session.getSql(), columns, numberOfParams);
+                        session.putStmt(stmtId, stmtInfo);
+                        System.out.println("-> resp stmt_prepare : " + packetId + ", len " + len + ", stmtId " + stmtId
+                                           + ", columns " + columns + ", params " + numberOfParams);
                     } else {
                         System.out.println("-> resp stmt_prepare error " + packetId);
                     }
+                    session.setSql(null);
                 }
                     break;
-                // case ProxySession.STAT_CMD_STMT_PREPARE_RESP_COLUMN:
-                // System.out.println("-> resp stmt_prepare_column " + packetId);
-                // if (status == EOF) {
-                // session.setState(ProxySession.STAT_CMD_STMT_PREPARE_RESP_COLUMN_EOF);
-                // }
-                // break;
+                case STAT_CMD_STMT_PREPARE_RESP_COLUMN:
+                    System.out.println("-> resp stmt_prepare_column " + packetId + ", status " + status + ", len "
+                                       + len);
+                    if (status == EOF) {
+                        session.setState(STAT_CMD_STMT_PREPARE_RESP_COLUMN_EOF);
+                    }
+                    break;
+                case STAT_CMD_STMT_PREPARE_RESP_PARAM: {
+                    System.out.println("-> resp stmt_prepare_param " + packetId + ", status " + status + ", len " + len);
+                    if (status == EOF) {
+                        session.setState(STAT_CMD_STMT_PREPARE_RESP_COLUMN);
+                    }
+                    break;
+                }
+
                 default: {
                     System.out.println("-> resp status : " + packetId + " / " + status + ", " + len + ", stat " + stat);
                 }

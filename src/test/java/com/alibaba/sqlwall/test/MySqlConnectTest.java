@@ -62,6 +62,18 @@ public class MySqlConnectTest extends TestCase {
         }
         conn.commit();
         conn.rollback();
+        
+        {
+            PreparedStatement stmt = conn.prepareStatement("SELECT 1, ?, ?");
+            stmt.setString(1, "xxx1");
+            stmt.setString(2, "xxx2");
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+
+            }
+            rs.close();
+            stmt.close();
+        }
 
         conn.close();
     }
