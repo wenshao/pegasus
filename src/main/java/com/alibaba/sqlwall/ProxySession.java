@@ -5,6 +5,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.jboss.netty.channel.Channel;
 
+import com.alibaba.druid.stat.JdbcSqlStat;
+
 public class ProxySession {
 
     public static final ThreadLocal<ProxySession> currentLocal     = new ThreadLocal<ProxySession>();
@@ -28,25 +30,33 @@ public class ProxySession {
     private volatile int                          rowIndex;
 
     private String                                sql;
+    private JdbcSqlStat                           sqlStat;
 
     private Map<Integer, PStmtInfo>               stmtMap          = new ConcurrentHashMap<Integer, PStmtInfo>(16,
                                                                                                                0.75f, 1);
 
     private volatile long                         commandQueryStartNano;
+    private long                                  commandQueryExecuteEndNano;
 
     public ProxySession(Channel frontChannel){
         this.frontChannel = frontChannel;
     }
-    
+
     public long getCommandQueryStartNano() {
         return commandQueryStartNano;
     }
-    
+
     public void setCommandQueryStartNano(long commandQueryStartNano) {
         this.commandQueryStartNano = commandQueryStartNano;
     }
 
+    public long getCommandQueryExecuteEndNano() {
+        return commandQueryExecuteEndNano;
+    }
 
+    public void setCommandQueryExecuteEndNano(long commandQueryExecuteEndNano) {
+        this.commandQueryExecuteEndNano = commandQueryExecuteEndNano;
+    }
 
     public String getSql() {
         return sql;
@@ -54,6 +64,14 @@ public class ProxySession {
 
     public void setSql(String sql) {
         this.sql = sql;
+    }
+    
+    public JdbcSqlStat getSqlStat() {
+        return sqlStat;
+    }
+    
+    public void setSqlStat(JdbcSqlStat sqlStat) {
+        this.sqlStat = sqlStat;
     }
 
     public void putStmt(int stmtId, PStmtInfo stmt) {

@@ -1,12 +1,13 @@
 package com.alibaba.sqlwall.mysql;
 
-import static com.alibaba.sqlwall.ProxySessionStat.*;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_QUERY;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_STMT_PREPARE;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_UNKOWN;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_QUERY;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_CLOSE;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_EXECUTE;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_PREPARE;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.MySQLPacket.COM_QUIT;
-
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -17,6 +18,7 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 
+import com.alibaba.druid.stat.JdbcSqlStat;
 import com.alibaba.druid.wall.WallProvider;
 import com.alibaba.sqlwall.ProxySession;
 import com.alibaba.sqlwall.mysql.protocol.mysql.AuthPacket;
@@ -24,24 +26,28 @@ import com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket;
 
 public class FrontDecoder extends LengthFieldBasedFrameDecoder {
 
-    private final static Log   LOG                  = LogFactory.getLog(FrontDecoder.class);
+    private final static Log       LOG                  = LogFactory.getLog(FrontDecoder.class);
 
-    private final static int   maxFrameLength       = 1024 * 1024 * 32;                     // 1m
-    private final static int   lengthFieldOffset    = 0;
-    private final static int   lengthFieldLength    = 3;
+    private final static int       maxFrameLength       = 1024 * 1024 * 32;                     // 1m
+    private final static int       lengthFieldOffset    = 0;
+    private final static int       lengthFieldLength    = 3;
 
-    private final AtomicLong   receivedBytes        = new AtomicLong();
-    private final AtomicLong   receivedMessageCount = new AtomicLong();
+    private final AtomicLong       receivedBytes        = new AtomicLong();
+    private final AtomicLong       receivedMessageCount = new AtomicLong();
 
-    private final WallProvider provider;
+    private final MySqlProxyServer proxyServer;
 
-    public FrontDecoder(WallProvider provider){
+    public FrontDecoder(MySqlProxyServer proxyServer){
         super(maxFrameLength, lengthFieldOffset, lengthFieldLength, 1, 0);
-        this.provider = provider;
+        this.proxyServer = proxyServer;
     }
 
     public long getRecevedBytes() {
         return receivedBytes.get();
+    }
+
+    public WallProvider getWallProvider() {
+        return proxyServer.getWallProvider();
     }
 
     public long getReceivedMessageCount() {
@@ -71,6 +77,8 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
         int packetId = frame.getByte(3);
         ProxySession session = (ProxySession) channel.getAttachment();
 
+        boolean error = false;
+
         session.setState(STAT_UNKOWN);
         if (session.getPhase() == ProxySession.PHASE_AUTH) {
             if (packetId == 1) {
@@ -88,10 +96,18 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
                 CommandPacket packet = new CommandPacket();
                 packet.read(frame.array());
                 final byte command = packet.command;
+
                 switch (command) {
                     case COM_QUERY: {
                         String sql = new String(packet.arg, session.getCharset());
+                        JdbcSqlStat sqlStat = proxyServer.getServerStat().createSqlStat(sql);
+                        
                         session.setSql(sql);
+                        session.setSqlStat(sqlStat);
+                        
+                        if (sqlStat != null) {
+                            sqlStat.incrementRunningCount();
+                        }
 
                         System.out.println("<- req cmd_query : " + sql);
 
@@ -102,12 +118,22 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
                         session.setRowIndex(-1);
                         session.setCommandQueryStartNano(nano);
 
-                        provider.check(sql);
+//                        List<ExecuteBeforeListener> listeners = this.proxyServer.getExecuteBeforeListeners();
+//                        for (int i = 0; i < listeners.size(); ++i) {
+//                            ExecuteBeforeListener listener = listeners.get(i);
+//                            boolean result = listener.executeBefore(session, sql);
+//                            if (!result) {
+//                                result = true;
+//                                break;
+//                            }
+//                        }
+
+                        getWallProvider().check(sql);
                     }
                         break;
                     case COM_STMT_EXECUTE: {
                         long nano = System.nanoTime();
-                        
+
                         int stmtId = frame.getInt(5);
                         session.setState(STAT_CMD_QUERY);
                         session.setFieldCount((short) -1);
@@ -148,7 +174,12 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
 
         receivedMessageCount.incrementAndGet();
 
-        session.getBackendChannel().write(frame);
+        if (error) {
+            // TODO
+            throw new RuntimeException("TODO");
+        } else {
+            session.getBackendChannel().write(frame);
+        }
         return null;
     }
 }

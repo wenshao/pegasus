@@ -3,6 +3,8 @@ package com.alibaba.sqlwall.mysql;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteOrder;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -19,25 +21,28 @@ import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
+import com.alibaba.druid.util.JdbcConstants;
 import com.alibaba.druid.wall.WallProvider;
 import com.alibaba.druid.wall.spi.MySqlWallProvider;
+import com.alibaba.sqlwall.listener.ExecuteBeforeListener;
+import com.alibaba.sqlwall.stat.ProxyServerStat;
 
 public class MySqlProxyServer {
 
-    static Log                            LOG               = LogFactory.getLog(MySqlProxyServer.class);
+    static Log                            LOG                    = LogFactory.getLog(MySqlProxyServer.class);
 
     private ServerBootstrap               bootstrap;
     private ThreadPoolExecutor            bossExecutor;
     private ThreadPoolExecutor            workerExecutor;
 
-    private int                           workerThreadCount = Runtime.getRuntime().availableProcessors();
+    private int                           workerThreadCount      = Runtime.getRuntime().availableProcessors();
 
     private NioServerSocketChannelFactory channelFactory;
 
-    final AtomicLong                      acceptedCount     = new AtomicLong();
-    final AtomicLong                      closedCount       = new AtomicLong();
-    private final AtomicLong              sessionCount      = new AtomicLong();
-    private final AtomicLong              runningMax        = new AtomicLong();
+    final AtomicLong                      acceptedCount          = new AtomicLong();
+    final AtomicLong                      closedCount            = new AtomicLong();
+    private final AtomicLong              sessionCount           = new AtomicLong();
+    private final AtomicLong              runningMax             = new AtomicLong();
 
     private FrontDecoder                  decoder;
 
@@ -46,23 +51,36 @@ public class MySqlProxyServer {
     private String                        remoteHost;
     private int                           remotePort;
 
-    private int                           listenPort        = 3306;
+    private int                           listenPort             = 3306;
 
     private WallProvider                  wallProvider;
+
+    private ProxyServerStat               serverStat             = new ProxyServerStat(JdbcConstants.MYSQL);
+
+    private List<ExecuteBeforeListener>   executeBeforeListeners = new CopyOnWriteArrayList<ExecuteBeforeListener>();
 
     public MySqlProxyServer(String remoteHost, int remotePort){
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
 
         wallProvider = new MySqlWallProvider();
-        decoder = new FrontDecoder(wallProvider);
+
+    }
+    
+    public ProxyServerStat getServerStat() {
+        return this.serverStat;
     }
 
     public WallProvider getWallProvider() {
         return wallProvider;
     }
 
+    public List<ExecuteBeforeListener> getExecuteBeforeListeners() {
+        return executeBeforeListeners;
+    }
+
     public void start() {
+        decoder = new FrontDecoder(this);
 
         bossExecutor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
                                               new SynchronousQueue<Runnable>());
