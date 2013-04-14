@@ -111,12 +111,6 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                 case STAT_CMD_QUERY: {
                     long nano = System.nanoTime();
                     long execNanoSpan = nano - session.getCommandQueryStartNano();
-                    
-                    JdbcSqlStat sqlStat = session.getSqlStat();
-                    if (sqlStat != null) {
-                        sqlStat.decrementRunningCount();
-                    }
-                    sqlStat.addExecuteTime(execNanoSpan);
 
                     if (status == ERROR) {
                         System.out.println("-> resp error : " + packetId + " / " + status + ", len " + len);
@@ -129,7 +123,8 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                         OkPacket packet = new OkPacket();
                         packet.read(frame.array());
                         session.setState(STAT_CMD_QUERY_RESP_EOF);
-                        System.out.println("-> resp ok : " + packetId + " / " + status + ", len " + len + ", nanos "
+                        System.out.println("-> resp ok : " + packetId + ", effectedRows " + packet.affectedRows
+                                           + ", len " + len + ", nanos "
                                            + NumberFormat.getInstance().format(execNanoSpan));
                     } else {
                         short fieldCount = frame.getUnsignedByte(4);
@@ -140,6 +135,13 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                         System.out.println("-> resp field_count : " + packetId + ", status " + status + ", len " + len
                                            + " -> " + fieldCount);
                     }
+
+                    JdbcSqlStat sqlStat = session.getSqlStat();
+                    if (sqlStat != null) {
+                        sqlStat.decrementRunningCount();
+                    }
+                    sqlStat.addExecuteTime(execNanoSpan);
+
                     session.setCommandQueryExecuteEndNano(nano);
                 }
                     break;
