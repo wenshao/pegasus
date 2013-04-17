@@ -17,6 +17,8 @@ public class MySqlConnectTest extends TestCase {
     public void test_connect() throws Exception {
         MySqlProxyServer server = new MySqlProxyServer("hbase-01", 3306);
         server.start();
+        
+        Thread.sleep(1000 * 3600 * 10);
 
         // jdbc:mysql://scuritytest.mysql.rds.aliyuncs.com:3306/mysql
         Driver driver = new com.mysql.jdbc.Driver();

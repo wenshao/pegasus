@@ -26,6 +26,7 @@ import com.alibaba.sqlwall.PStmtInfo;
 import com.alibaba.sqlwall.ProxySession;
 import com.alibaba.sqlwall.mysql.protocol.mysql.CharsetUtil;
 import com.alibaba.sqlwall.mysql.protocol.mysql.EOFPacket;
+import com.alibaba.sqlwall.mysql.protocol.mysql.ErrorPacket;
 import com.alibaba.sqlwall.mysql.protocol.mysql.FieldPacket;
 import com.alibaba.sqlwall.mysql.protocol.mysql.HandshakePacket;
 import com.alibaba.sqlwall.mysql.protocol.mysql.OkPacket;
@@ -34,7 +35,7 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
 
     private final static Log   LOG                  = LogFactory.getLog(BackendDecoder.class);
 
-    private final static int   maxFrameLength       = 1024 * 1024 * 32;                       // 1m
+    private final static int   maxFrameLength       = 1024 * 1024 * 16;                       // 1m
     private final static int   lengthFieldOffset    = 0;
     private final static int   lengthFieldLength    = 3;
 
@@ -113,6 +114,8 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                     long execNanoSpan = nano - session.getCommandQueryStartNano();
 
                     if (status == ERROR) {
+                        ErrorPacket errorPacket = new ErrorPacket();
+                        errorPacket.read(frame.array());
                         System.out.println("-> resp error : " + packetId + " / " + status + ", len " + len);
                         session.setState(STAT_CMD_QUERY_RESP_ERROR);
                     } else if (status == EOF) {

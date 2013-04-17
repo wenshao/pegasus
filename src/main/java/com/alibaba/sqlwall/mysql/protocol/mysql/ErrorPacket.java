@@ -15,6 +15,9 @@
  */
 package com.alibaba.sqlwall.mysql.protocol.mysql;
 
+import java.nio.ByteBuffer;
+
+import org.jboss.netty.buffer.ChannelBuffer;
 
 /**
  * From server to client in response to command, if error.
@@ -34,15 +37,16 @@ package com.alibaba.sqlwall.mysql.protocol.mysql;
  * @author xianmao.hexm 2010-7-16 上午10:45:01
  */
 public class ErrorPacket extends MySQLPacket {
-    public static final byte FIELD_COUNT = (byte) 0xff;
-    private static final byte SQLSTATE_MARKER = (byte) '#';
+
+    public static final byte    FIELD_COUNT      = (byte) 0xff;
+    private static final byte   SQLSTATE_MARKER  = (byte) '#';
     private static final byte[] DEFAULT_SQLSTATE = "HY000".getBytes();
 
-    public byte fieldCount = FIELD_COUNT;
-    public int errno;
-    public byte mark = SQLSTATE_MARKER;
-    public byte[] sqlState = DEFAULT_SQLSTATE;
-    public byte[] message;
+    public byte                 fieldCount       = FIELD_COUNT;
+    public int                  errno;
+    public byte                 mark             = SQLSTATE_MARKER;
+    public byte[]               sqlState         = DEFAULT_SQLSTATE;
+    public byte[]               message;
 
     public void read(byte[] data) {
         MySQLMessage mm = new MySQLMessage(data);
@@ -57,5 +61,22 @@ public class ErrorPacket extends MySQLPacket {
         message = mm.readBytes();
     }
 
+    public void write(ChannelBuffer buffer) {
+        int size = calcPacketSize();
+        buffer.writeMedium(size);
+        buffer.writeByte(packetId);
+        buffer.writeByte(fieldCount);
+        buffer.writeShort(errno);
+        buffer.writeByte(mark);
+        buffer.writeBytes(sqlState);
+        buffer.writeBytes(message);
+    }
 
+    public int calcPacketSize() {
+        int size = 9;// 1 + 2 + 1 + 5
+        if (message != null) {
+            size += message.length;
+        }
+        return size;
+    }
 }

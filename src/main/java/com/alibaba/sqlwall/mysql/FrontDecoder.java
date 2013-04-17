@@ -9,26 +9,30 @@ import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_EX
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_PREPARE;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.MySQLPacket.COM_QUIT;
 
+import java.nio.ByteOrder;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 
 import com.alibaba.druid.stat.JdbcSqlStat;
+import com.alibaba.druid.wall.WallCheckResult;
 import com.alibaba.druid.wall.WallProvider;
 import com.alibaba.sqlwall.ProxySession;
 import com.alibaba.sqlwall.mysql.protocol.mysql.AuthPacket;
 import com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket;
+import com.alibaba.sqlwall.mysql.protocol.mysql.ErrorPacket;
 
 public class FrontDecoder extends LengthFieldBasedFrameDecoder {
 
     private final static Log       LOG                  = LogFactory.getLog(FrontDecoder.class);
 
-    private final static int       maxFrameLength       = 1024 * 1024 * 32;                     // 1m
+    private final static int       maxFrameLength       = 1024 * 1024 * 16;                     // 1m
     private final static int       lengthFieldOffset    = 0;
     private final static int       lengthFieldLength    = 3;
 
@@ -128,7 +132,10 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
 //                            }
 //                        }
 
-                        getWallProvider().check(sql);
+                        WallCheckResult result = getWallProvider().check(sql);
+                        if (result.getViolations().size() > 0) {
+                            error = true;
+                        }
                     }
                         break;
                     case COM_STMT_EXECUTE: {
@@ -175,8 +182,16 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
         receivedMessageCount.incrementAndGet();
 
         if (error) {
-            // TODO
-            throw new RuntimeException("TODO");
+            ErrorPacket errorPacket = new ErrorPacket();
+            errorPacket.packetId = 1;
+            errorPacket.errno = 1146;
+            errorPacket.message = "sql injection error".getBytes(session.getCharset());
+            errorPacket.sqlState = "12345".getBytes();
+            
+            int size = errorPacket.calcPacketSize() + 4;
+            ChannelBuffer errorBuffer = ChannelBuffers.buffer(ByteOrder.LITTLE_ENDIAN, size);
+            errorPacket.write(errorBuffer);
+            channel.write(errorBuffer);
         } else {
             session.getBackendChannel().write(frame);
         }
