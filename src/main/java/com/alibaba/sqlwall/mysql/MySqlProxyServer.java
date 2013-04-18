@@ -70,7 +70,7 @@ public class MySqlProxyServer {
 
     }
 
-    public ProxyServerStat getServerStat() {
+    public ProxyServerStat getProxyStat() {
         return this.serverStat;
     }
 

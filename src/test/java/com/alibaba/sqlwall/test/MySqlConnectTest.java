@@ -11,6 +11,7 @@ import junit.framework.TestCase;
 
 import com.alibaba.druid.util.JdbcUtils;
 import com.alibaba.sqlwall.mysql.MySqlProxyServer;
+import com.alibaba.sqlwall.stat.ProxyServerStat;
 
 public class MySqlConnectTest extends TestCase {
 

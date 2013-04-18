@@ -101,7 +101,7 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
                 switch (command) {
                     case COM_QUERY: {
                         String sql = new String(packet.arg, session.getCharset());
-                        JdbcSqlStat sqlStat = proxyServer.getServerStat().createSqlStat(sql);
+                        JdbcSqlStat sqlStat = proxyServer.getProxyStat().createSqlStat(sql);
 
                         session.setSql(sql);
                         session.setSqlStat(sqlStat);
