@@ -4,6 +4,12 @@ public interface ProxySessionStat {
 
     public static final int STAT_UNKOWN                           = -1;
 
+    public static final int STAT_INIT                             = 100;
+    public static final int STAT_HANDSHAKE                        = 200;
+    public static final int STAT_AUTH                             = 300;
+    public static final int STAT_AUTH_OK                          = 301;
+    public static final int STAT_AUTH_ERROR                       = 302;
+
     public static final int STAT_CMD_QUERY                        = 1001;
     public static final int STAT_CMD_QUERY_RESP_FIELD             = 1002;
 

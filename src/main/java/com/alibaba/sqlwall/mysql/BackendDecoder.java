@@ -1,5 +1,6 @@
 package com.alibaba.sqlwall.mysql;
 
+import static com.alibaba.sqlwall.ProxySessionStat.*;
 import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_QUERY;
 import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_QUERY_RESP_EOF;
 import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_QUERY_RESP_ERROR;
@@ -10,6 +11,7 @@ import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_STMT_PREPARE;
 import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_STMT_PREPARE_RESP_COLUMN;
 import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_STMT_PREPARE_RESP_COLUMN_EOF;
 import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_STMT_PREPARE_RESP_PARAM;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_INIT;
 
 import java.text.NumberFormat;
 import java.util.concurrent.atomic.AtomicLong;
@@ -86,8 +88,8 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
         final int ERROR = -1;
         final int EOF = -2;
 
-        if (session.getPhase() == ProxySession.PHASE_AUTH) {
-            if (packetId == 0) {
+        switch (stat) {
+            case STAT_INIT: {
                 HandshakePacket packet = new HandshakePacket();
                 packet.read(frame.array());
 
@@ -95,130 +97,122 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                 String charset = CharsetUtil.getCharset(charsetIndex);
                 session.setCharset(charset);
                 System.out.println("-> rsp auth : " + packetId);
-            } else if (packetId == 2) {
+                break;
+            }
+            case STAT_AUTH:
                 if (status == OK) {
-                    session.setPhase(ProxySession.PHASE_COMMAND);
+                    session.setState(STAT_AUTH_OK);
                     System.out.println("-> rsp auth_ok : " + packetId);
-                } else if (status == (byte) 0xFF) {
-                    session.setPhase(ProxySession.PHASE_AUTH_ERROR);
-                    System.out.println("-> rsp auth_err : " + packetId);
+                } else if (status == ERROR) {
+                    session.setState(STAT_AUTH_ERROR);
+                    System.out.println("-> rsp auth_error : " + packetId);
                 }
-            } else {
-                System.out.println("-> rsp other : " + packetId);
-            }
-        } else if (session.getPhase() == ProxySession.PHASE_COMMAND) {
+                break;
+            case STAT_CMD_QUERY: {
+                long nano = System.nanoTime();
+                long execNanoSpan = nano - session.getCommandQueryStartNano();
 
-            switch (stat) {
-                case STAT_CMD_QUERY: {
+                if (status == ERROR) {
+                    ErrorPacket errorPacket = new ErrorPacket();
+                    errorPacket.read(frame.array());
+                    System.out.println("-> resp error : " + packetId + " / " + status + ", len " + len);
+                    session.setState(STAT_CMD_QUERY_RESP_ERROR);
+                } else if (status == EOF) {
+                    EOFPacket packet = new EOFPacket();
+                    packet.read(frame.array());
+                    System.out.println("-> resp eof : " + packetId + " / " + status + ", len " + len);
+                } else if (status == OK) {
+                    OkPacket packet = new OkPacket();
+                    packet.read(frame.array());
+                    session.setState(STAT_CMD_QUERY_RESP_EOF);
+                    System.out.println("-> resp ok : " + packetId + ", effectedRows " + packet.affectedRows + ", len "
+                                       + len + ", nanos " + NumberFormat.getInstance().format(execNanoSpan));
+                } else {
+                    short fieldCount = frame.getUnsignedByte(4);
+
+                    session.setFieldCount(fieldCount);
+                    session.setState(STAT_CMD_QUERY_RESP_FIELD);
+
+                    System.out.println("-> resp field_count : " + packetId + ", status " + status + ", len " + len
+                                       + " -> " + fieldCount);
+                }
+
+                JdbcSqlStat sqlStat = session.getSqlStat();
+                if (sqlStat != null) {
+                    sqlStat.decrementRunningCount();
+                }
+                sqlStat.addExecuteTime(execNanoSpan);
+
+                session.setCommandQueryExecuteEndNano(nano);
+            }
+                break;
+            case STAT_CMD_QUERY_RESP_FIELD: {
+                int fieldCount = session.incrementAndGetFieldIndex();
+
+                if (fieldCount < session.getFieldCount()) {
+                    FieldPacket packet = new FieldPacket();
+                    packet.read(frame.array());
+                    String fieldName = new String(packet.name, session.getCharset());
+                    System.out.println("-> resp field : " + packetId + ", index " + session.getFieldIndex() + " -> "
+                                       + fieldName);
+                } else {
+                    System.out.println("-> resp field : " + packetId + ", index " + session.getFieldIndex() + ", "
+                                       + len + ", " + status);
+                }
+                if (fieldCount == session.getFieldCount()) {
+                    session.setState(STAT_CMD_QUERY_RESP_ROW);
+                }
+            }
+                break;
+            case STAT_CMD_QUERY_RESP_ROW: {
+                if (status == EOF) {
                     long nano = System.nanoTime();
-                    long execNanoSpan = nano - session.getCommandQueryStartNano();
+                    long fetchRowNanos = nano - session.getCommandQueryExecuteEndNano();
 
-                    if (status == ERROR) {
-                        ErrorPacket errorPacket = new ErrorPacket();
-                        errorPacket.read(frame.array());
-                        System.out.println("-> resp error : " + packetId + " / " + status + ", len " + len);
-                        session.setState(STAT_CMD_QUERY_RESP_ERROR);
-                    } else if (status == EOF) {
-                        EOFPacket packet = new EOFPacket();
-                        packet.read(frame.array());
-                        System.out.println("-> resp eof : " + packetId + " / " + status + ", len " + len);
-                    } else if (status == OK) {
-                        OkPacket packet = new OkPacket();
-                        packet.read(frame.array());
-                        session.setState(STAT_CMD_QUERY_RESP_EOF);
-                        System.out.println("-> resp ok : " + packetId + ", effectedRows " + packet.affectedRows
-                                           + ", len " + len + ", nanos "
-                                           + NumberFormat.getInstance().format(execNanoSpan));
-                    } else {
-                        short fieldCount = frame.getUnsignedByte(4);
-
-                        session.setFieldCount(fieldCount);
-                        session.setState(STAT_CMD_QUERY_RESP_FIELD);
-
-                        System.out.println("-> resp field_count : " + packetId + ", status " + status + ", len " + len
-                                           + " -> " + fieldCount);
-                    }
-
-                    JdbcSqlStat sqlStat = session.getSqlStat();
-                    if (sqlStat != null) {
-                        sqlStat.decrementRunningCount();
-                    }
-                    sqlStat.addExecuteTime(execNanoSpan);
-
-                    session.setCommandQueryExecuteEndNano(nano);
+                    session.setState(STAT_CMD_QUERY_RESP_ROW_EOF);
+                    System.out.println("-> resp row eof " + packetId + ", " + status + ", len " + len + ", nanos "
+                                       + NumberFormat.getInstance().format(fetchRowNanos));
+                } else {
+                    int rowCount = session.incrementAndGetRowIndex();
+                    System.out.println("-> resp row : " + packetId + ", index " + rowCount + ", len " + len);
                 }
-                    break;
-                case STAT_CMD_QUERY_RESP_FIELD: {
-                    int fieldCount = session.incrementAndGetFieldIndex();
-
-                    if (fieldCount < session.getFieldCount()) {
-                        FieldPacket packet = new FieldPacket();
-                        packet.read(frame.array());
-                        String fieldName = new String(packet.name, session.getCharset());
-                        System.out.println("-> resp field : " + packetId + ", index " + session.getFieldIndex()
-                                           + " -> " + fieldName);
-                    } else {
-                        System.out.println("-> resp field : " + packetId + ", index " + session.getFieldIndex() + ", "
-                                           + len + ", " + status);
-                    }
-                    if (fieldCount == session.getFieldCount()) {
-                        session.setState(STAT_CMD_QUERY_RESP_ROW);
-                    }
-                }
-                    break;
-                case STAT_CMD_QUERY_RESP_ROW: {
-                    if (status == EOF) {
-                        long nano = System.nanoTime();
-                        long fetchRowNanos = nano - session.getCommandQueryExecuteEndNano();
-
-                        session.setState(STAT_CMD_QUERY_RESP_ROW_EOF);
-                        System.out.println("-> resp row eof " + packetId + ", " + status + ", len " + len + ", nanos "
-                                           + NumberFormat.getInstance().format(fetchRowNanos));
-                    } else {
-                        int rowCount = session.incrementAndGetRowIndex();
-                        System.out.println("-> resp row : " + packetId + ", index " + rowCount + ", len " + len);
-                    }
-                }
-                    break;
-                case STAT_CMD_STMT_PREPARE: {
-                    if (status == OK) {
-                        session.setState(STAT_CMD_STMT_PREPARE_RESP_PARAM);
-                        int stmtId = frame.getInt(5);
-                        int columns = frame.getUnsignedShort(9);
-                        int numberOfParams = frame.getUnsignedShort(11);
-
-                        PStmtInfo stmtInfo = new PStmtInfo(stmtId, session.getSql(), columns, numberOfParams);
-                        session.putStmt(stmtId, stmtInfo);
-                        System.out.println("-> resp stmt_prepare : " + packetId + ", len " + len + ", stmtId " + stmtId
-                                           + ", columns " + columns + ", params " + numberOfParams);
-                    } else {
-                        System.out.println("-> resp stmt_prepare error " + packetId);
-                    }
-                    session.setSql(null);
-                }
-                    break;
-                case STAT_CMD_STMT_PREPARE_RESP_COLUMN:
-                    System.out.println("-> resp stmt_prepare_column " + packetId + ", status " + status + ", len "
-                                       + len);
-                    if (status == EOF) {
-                        session.setState(STAT_CMD_STMT_PREPARE_RESP_COLUMN_EOF);
-                    }
-                    break;
-                case STAT_CMD_STMT_PREPARE_RESP_PARAM: {
-                    System.out.println("-> resp stmt_prepare_param " + packetId + ", status " + status + ", len " + len);
-                    if (status == EOF) {
-                        session.setState(STAT_CMD_STMT_PREPARE_RESP_COLUMN);
-                    }
-                    break;
-                }
-
-                default: {
-                    System.out.println("-> resp status : " + packetId + " / " + status + ", " + len + ", stat " + stat);
-                }
-                    break;
             }
-        } else {
-            System.out.println("-> resp other : " + packetId);
+                break;
+            case STAT_CMD_STMT_PREPARE: {
+                if (status == OK) {
+                    session.setState(STAT_CMD_STMT_PREPARE_RESP_PARAM);
+                    int stmtId = frame.getInt(5);
+                    int columns = frame.getUnsignedShort(9);
+                    int numberOfParams = frame.getUnsignedShort(11);
+
+                    PStmtInfo stmtInfo = new PStmtInfo(stmtId, session.getSql(), columns, numberOfParams);
+                    session.putStmt(stmtId, stmtInfo);
+                    System.out.println("-> resp stmt_prepare : " + packetId + ", len " + len + ", stmtId " + stmtId
+                                       + ", columns " + columns + ", params " + numberOfParams);
+                } else {
+                    System.out.println("-> resp stmt_prepare error " + packetId);
+                }
+                session.setSql(null);
+            }
+                break;
+            case STAT_CMD_STMT_PREPARE_RESP_COLUMN:
+                System.out.println("-> resp stmt_prepare_column " + packetId + ", status " + status + ", len " + len);
+                if (status == EOF) {
+                    session.setState(STAT_CMD_STMT_PREPARE_RESP_COLUMN_EOF);
+                }
+                break;
+            case STAT_CMD_STMT_PREPARE_RESP_PARAM: {
+                System.out.println("-> resp stmt_prepare_param " + packetId + ", status " + status + ", len " + len);
+                if (status == EOF) {
+                    session.setState(STAT_CMD_STMT_PREPARE_RESP_COLUMN);
+                }
+                break;
+            }
+
+            default: {
+                System.out.println("-> resp status : " + packetId + " / " + status + ", " + len + ", stat " + stat);
+            }
+                break;
         }
 
         receivedMessageCount.incrementAndGet();

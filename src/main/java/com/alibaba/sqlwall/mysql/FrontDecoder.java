@@ -1,6 +1,6 @@
 package com.alibaba.sqlwall.mysql;
 
-import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_QUERY;
+import static com.alibaba.sqlwall.ProxySessionStat.*;
 import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_STMT_PREPARE;
 import static com.alibaba.sqlwall.ProxySessionStat.STAT_UNKOWN;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_QUERY;
@@ -81,18 +81,20 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
 
         boolean error = false;
 
+        int stat = session.getState();
         session.setState(STAT_UNKOWN);
-        if (session.getPhase() == ProxySession.PHASE_AUTH) {
+        if (stat == STAT_HANDSHAKE) {
             if (packetId == 1) {
                 AuthPacket packet = new AuthPacket();
                 packet.read(frame.array());
 
                 session.setUser(packet.user);
+                session.setState(STAT_AUTH);
                 System.out.println("<- req auth : " + packetId + " user " + packet.user);
             } else {
                 System.out.println("<- req other : " + packetId);
             }
-        } else if (session.getPhase() == ProxySession.PHASE_COMMAND) {
+        } else if (stat == ProxySession.PHASE_COMMAND) {
             if (packetId == 0) {
 
                 CommandPacket packet = new CommandPacket();

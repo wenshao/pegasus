@@ -7,6 +7,8 @@ import org.jboss.netty.channel.Channel;
 
 import com.alibaba.druid.stat.JdbcSqlStat;
 
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_INIT;
+
 public class ProxySession {
 
     public static final ThreadLocal<ProxySession> currentLocal     = new ThreadLocal<ProxySession>();
@@ -20,9 +22,7 @@ public class ProxySession {
     public static final int                       PHASE_AUTH_ERROR = 100;
     public static final int                       PHASE_COMMAND    = 1001;
 
-    private volatile int                          phase            = PHASE_AUTH;
-
-    private volatile int                          state;
+    private volatile int                          state            = STAT_INIT;
 
     private volatile short                        fieldCount;
     private volatile short                        fieldIndex;
@@ -65,11 +65,11 @@ public class ProxySession {
     public void setSql(String sql) {
         this.sql = sql;
     }
-    
+
     public JdbcSqlStat getSqlStat() {
         return sqlStat;
     }
-    
+
     public void setSqlStat(JdbcSqlStat sqlStat) {
         this.sqlStat = sqlStat;
     }
@@ -136,14 +136,6 @@ public class ProxySession {
 
     public void setUser(String user) {
         this.user = user;
-    }
-
-    public int getPhase() {
-        return phase;
-    }
-
-    public void setPhase(int phase) {
-        this.phase = phase;
     }
 
     public String getCharset() {

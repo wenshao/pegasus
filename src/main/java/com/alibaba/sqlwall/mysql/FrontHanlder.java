@@ -5,7 +5,6 @@ import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
-import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 
 import com.alibaba.sqlwall.ProxySession;
@@ -20,13 +19,13 @@ public class FrontHanlder extends SimpleChannelUpstreamHandler {
         proxyServer = mySqlProxyServer;
     }
 
-    public void channelOpen(ChannelHandlerContext ctx, ChannelStateEvent e) {
+    public void channelBound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
         long acceptedCount = proxyServer.acceptedCount.incrementAndGet();
         proxyServer.incrementSessionCount();
 
         Channel channel = e.getChannel();
         if (LOG.isDebugEnabled()) {
-            LOG.debug("accepted " + channel.getRemoteAddress() + " " + acceptedCount);
+            LOG.debug("front channel bound " + channel.getRemoteAddress() + " " + acceptedCount);
         }
         
         
@@ -42,14 +41,20 @@ public class FrontHanlder extends SimpleChannelUpstreamHandler {
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
         proxyServer.closedCount.incrementAndGet();
         proxyServer.decrementSessionCount();
+        
+        Channel channel = e.getChannel();
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("front channel closed " + channel.getRemoteAddress());
+        }
+        
+        ProxySession session = (ProxySession) channel.getAttachment();
+        if (session != null) {
+            Channel backendChannel = session.getBackendChannel();
+            if (backendChannel != null && backendChannel.isOpen()) {
+                backendChannel.close();
+            }
+        }
 
         ctx.sendUpstream(e);
-    }
-
-    public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-        ctx.sendUpstream(e);
-
-        String message = (String) e.getMessage();
-        ctx.getChannel().write(message);
     }
 }
