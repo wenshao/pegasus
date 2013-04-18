@@ -96,16 +96,24 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                 byte charsetIndex = packet.serverCharsetIndex;
                 String charset = CharsetUtil.getCharset(charsetIndex);
                 session.setCharset(charset);
-                System.out.println("-> rsp auth : " + packetId);
+                session.setState(STAT_HANDSHAKE);
+                
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("rsp handshake, packetId " + packetId);
+                }
                 break;
             }
             case STAT_AUTH:
                 if (status == OK) {
                     session.setState(STAT_AUTH_OK);
-                    System.out.println("-> rsp auth_ok : " + packetId);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("auth_ok, packetId " + packetId);
+                    }
                 } else if (status == ERROR) {
                     session.setState(STAT_AUTH_ERROR);
-                    System.out.println("-> rsp auth_error : " + packetId);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("auth_error, packetId " + packetId);
+                    }
                 }
                 break;
             case STAT_CMD_QUERY: {

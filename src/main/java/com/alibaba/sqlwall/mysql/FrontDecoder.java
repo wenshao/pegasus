@@ -84,19 +84,16 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
         int stat = session.getState();
         session.setState(STAT_UNKOWN);
         if (stat == STAT_HANDSHAKE) {
-            if (packetId == 1) {
-                AuthPacket packet = new AuthPacket();
-                packet.read(frame.array());
+            AuthPacket packet = new AuthPacket();
+            packet.read(frame.array());
 
-                session.setUser(packet.user);
-                session.setState(STAT_AUTH);
-                System.out.println("<- req auth : " + packetId + " user " + packet.user);
-            } else {
-                System.out.println("<- req other : " + packetId);
+            session.setUser(packet.user);
+            session.setState(STAT_AUTH);
+            if (LOG.isDebugEnabled()) {
+                System.out.println("auth_req, packetId " + packetId + ", user " + packet.user);
             }
-        } else if (stat == ProxySession.PHASE_COMMAND) {
+        } else {
             if (packetId == 0) {
-
                 CommandPacket packet = new CommandPacket();
                 packet.read(frame.array());
                 final byte command = packet.command;
@@ -105,10 +102,10 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
                     case COM_QUERY: {
                         String sql = new String(packet.arg, session.getCharset());
                         JdbcSqlStat sqlStat = proxyServer.getServerStat().createSqlStat(sql);
-                        
+
                         session.setSql(sql);
                         session.setSqlStat(sqlStat);
-                        
+
                         if (sqlStat != null) {
                             sqlStat.incrementRunningCount();
                         }
@@ -122,15 +119,15 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
                         session.setRowIndex(-1);
                         session.setCommandQueryStartNano(nano);
 
-//                        List<ExecuteBeforeListener> listeners = this.proxyServer.getExecuteBeforeListeners();
-//                        for (int i = 0; i < listeners.size(); ++i) {
-//                            ExecuteBeforeListener listener = listeners.get(i);
-//                            boolean result = listener.executeBefore(session, sql);
-//                            if (!result) {
-//                                result = true;
-//                                break;
-//                            }
-//                        }
+                        // List<ExecuteBeforeListener> listeners = this.proxyServer.getExecuteBeforeListeners();
+                        // for (int i = 0; i < listeners.size(); ++i) {
+                        // ExecuteBeforeListener listener = listeners.get(i);
+                        // boolean result = listener.executeBefore(session, sql);
+                        // if (!result) {
+                        // result = true;
+                        // break;
+                        // }
+                        // }
 
                         WallCheckResult result = getWallProvider().check(sql);
                         if (result.getViolations().size() > 0) {
@@ -173,10 +170,6 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
             } else {
                 System.out.println("<- req other : " + packetId);
             }
-
-            // CommandPacket
-        } else {
-            System.out.println("<- req other : " + packetId);
         }
 
         receivedMessageCount.incrementAndGet();
@@ -187,7 +180,7 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
             errorPacket.errno = 1146;
             errorPacket.message = "sql injection error".getBytes(session.getCharset());
             errorPacket.sqlState = "12345".getBytes();
-            
+
             int size = errorPacket.calcPacketSize() + 4;
             ChannelBuffer errorBuffer = proxyServer.getBufferFactory().getBuffer(size);
             errorPacket.write(errorBuffer);
