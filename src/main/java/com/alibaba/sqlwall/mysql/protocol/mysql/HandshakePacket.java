@@ -15,7 +15,6 @@
  */
 package com.alibaba.sqlwall.mysql.protocol.mysql;
 
-
 /**
  * From server to client during initial handshake.
  * 
@@ -50,21 +49,6 @@ public class HandshakePacket extends MySQLPacket {
     public byte                serverCharsetIndex;
     public int                 serverStatus;
     public byte[]              restOfScrambleBuff;
-
-    public void read(BinaryPacket bin) {
-        packetLength = bin.packetLength;
-        packetId = bin.packetId;
-        MySQLMessage mm = new MySQLMessage(bin.data);
-        protocolVersion = mm.read();
-        serverVersion = mm.readBytesWithNull();
-        threadId = mm.readUB4();
-        seed = mm.readBytesWithNull();
-        serverCapabilities = mm.readUB2();
-        serverCharsetIndex = mm.read();
-        serverStatus = mm.readUB2();
-        mm.move(13);
-        restOfScrambleBuff = mm.readBytesWithNull();
-    }
 
     public void read(byte[] data) {
         MySQLMessage mm = new MySQLMessage(data);

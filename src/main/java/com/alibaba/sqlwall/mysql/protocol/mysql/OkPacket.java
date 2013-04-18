@@ -45,20 +45,6 @@ public class OkPacket extends MySQLPacket {
     public int warningCount;
     public byte[] message;
 
-    public void read(BinaryPacket bin) {
-        packetLength = bin.packetLength;
-        packetId = bin.packetId;
-        MySQLMessage mm = new MySQLMessage(bin.data);
-        fieldCount = mm.read();
-        affectedRows = mm.readLength();
-        insertId = mm.readLength();
-        serverStatus = mm.readUB2();
-        warningCount = mm.readUB2();
-        if (mm.hasRemaining()) {
-            this.message = mm.readBytesWithLength();
-        }
-    }
-
     public void read(byte[] data) {
         MySQLMessage mm = new MySQLMessage(data);
         packetLength = mm.readUB3();
