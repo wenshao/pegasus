@@ -14,6 +14,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.bootstrap.ServerBootstrap;
+import org.jboss.netty.buffer.ChannelBufferFactory;
 import org.jboss.netty.buffer.HeapChannelBufferFactory;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
@@ -59,6 +60,8 @@ public class MySqlProxyServer {
 
     private List<ExecuteBeforeListener>   executeBeforeListeners = new CopyOnWriteArrayList<ExecuteBeforeListener>();
 
+    private ChannelBufferFactory          bufferFactory          = new HeapChannelBufferFactory(ByteOrder.LITTLE_ENDIAN);
+
     public MySqlProxyServer(String remoteHost, int remotePort){
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
@@ -66,7 +69,7 @@ public class MySqlProxyServer {
         wallProvider = new MySqlWallProvider();
 
     }
-    
+
     public ProxyServerStat getServerStat() {
         return this.serverStat;
     }
@@ -89,7 +92,7 @@ public class MySqlProxyServer {
 
         channelFactory = new NioServerSocketChannelFactory(bossExecutor, workerExecutor, workerThreadCount);
         bootstrap = new ServerBootstrap(channelFactory);
-        bootstrap.setOption("child.bufferFactory", new HeapChannelBufferFactory(ByteOrder.LITTLE_ENDIAN));
+        bootstrap.setOption("child.bufferFactory", bufferFactory);
 
         bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
 
@@ -112,9 +115,13 @@ public class MySqlProxyServer {
         }
 
         client = new ClientBootstrap();
-        client.setOption("bufferFactory", new HeapChannelBufferFactory(ByteOrder.LITTLE_ENDIAN));
+        client.setOption("bufferFactory", bufferFactory);
         client.setPipelineFactory(new BackendPipelineFactory());
         client.setFactory(new NioClientSocketChannelFactory());
+    }
+
+    public ChannelBufferFactory getBufferFactory() {
+        return bufferFactory;
     }
 
     public ClientBootstrap getBackendBootstrap() {

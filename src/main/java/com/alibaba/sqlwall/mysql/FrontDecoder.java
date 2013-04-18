@@ -9,13 +9,11 @@ import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_EX
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_PREPARE;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.MySQLPacket.COM_QUIT;
 
-import java.nio.ByteOrder;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
@@ -189,7 +187,7 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
             errorPacket.sqlState = "12345".getBytes();
             
             int size = errorPacket.calcPacketSize() + 4;
-            ChannelBuffer errorBuffer = ChannelBuffers.buffer(ByteOrder.LITTLE_ENDIAN, size);
+            ChannelBuffer errorBuffer = proxyServer.getBufferFactory().getBuffer(size);
             errorPacket.write(errorBuffer);
             channel.write(errorBuffer);
         } else {

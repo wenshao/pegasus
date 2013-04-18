@@ -15,8 +15,6 @@
  */
 package com.alibaba.sqlwall.mysql.protocol.mysql;
 
-import java.nio.ByteBuffer;
-
 import org.jboss.netty.buffer.ChannelBuffer;
 
 /**
