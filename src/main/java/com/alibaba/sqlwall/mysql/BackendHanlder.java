@@ -13,9 +13,11 @@ public class BackendHanlder extends SimpleChannelUpstreamHandler {
 
     private static Log         LOG = LogFactory.getLog(BackendHanlder.class);
 
+    private final MySqlProxyServer proxyServer;
     private final ProxySession session;
 
-    public BackendHanlder(ProxySession session){
+    public BackendHanlder(MySqlProxyServer proxyServer, ProxySession session){
+        this.proxyServer = proxyServer;
         this.session = session;
     }
 
@@ -30,7 +32,9 @@ public class BackendHanlder extends SimpleChannelUpstreamHandler {
         }
 
         session.setBackendContext(channel);
-
+        
+        proxyServer.incrementSessionCount();
+        
         ctx.sendUpstream(e);
     }
 

@@ -116,7 +116,7 @@ public class MySqlProxyServer {
 
         client = new ClientBootstrap();
         client.setOption("bufferFactory", bufferFactory);
-        client.setPipelineFactory(new BackendPipelineFactory());
+        client.setPipelineFactory(new BackendPipelineFactory(this));
         client.setFactory(new NioClientSocketChannelFactory());
     }
 

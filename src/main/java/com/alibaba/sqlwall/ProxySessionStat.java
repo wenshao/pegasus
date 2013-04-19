@@ -23,4 +23,6 @@ public interface ProxySessionStat {
     public static final int STAT_CMD_STMT_PREPARE_RESP_COLUMN     = 2002;
     public static final int STAT_CMD_STMT_PREPARE_RESP_COLUMN_EOF = 2003;
     public static final int STAT_CMD_STMT_PREPARE_RESP_PARAM      = 2004;
+
+    public static final int STAT_CLOSED                           = 9999;
 }

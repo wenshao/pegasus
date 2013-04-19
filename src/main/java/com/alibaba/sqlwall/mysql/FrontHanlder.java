@@ -28,7 +28,6 @@ public class FrontHanlder extends SimpleChannelUpstreamHandler {
             LOG.debug("front channel bound " + channel.getRemoteAddress() + " " + acceptedCount);
         }
         
-        
         ProxySession session = new ProxySession(channel);
         ProxySession.setCurrent(session);
         channel.setAttachment(session);

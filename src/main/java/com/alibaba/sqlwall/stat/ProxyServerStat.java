@@ -3,6 +3,7 @@ package com.alibaba.sqlwall.stat;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -11,20 +12,29 @@ import com.alibaba.druid.util.LRUCache;
 
 public class ProxyServerStat {
 
-    private ReentrantReadWriteLock                   lock          = new ReentrantReadWriteLock();
-    public int                                       maxSize       = 1000 * 1;
+    private ReentrantReadWriteLock                   lock                  = new ReentrantReadWriteLock();
+    public int                                       maxSize               = 1000 * 1;
     private final LinkedHashMap<String, JdbcSqlStat> sqlStatMap;
 
-    private final AtomicLong                         clobOpenCount = new AtomicLong();
+    private final AtomicLong                         clobOpenCount         = new AtomicLong();
 
-    private final AtomicLong                         blobOpenCount = new AtomicLong();
-    
-    private final String dbType;
-    
+    private final AtomicLong                         blobOpenCount         = new AtomicLong();
+
+    private final String                             dbType;
+
+    private final AtomicInteger                      activeConnectionCount = new AtomicInteger();
 
     public ProxyServerStat(String dbType){
         sqlStatMap = new LRUCache<String, JdbcSqlStat>(maxSize, 16, 0.75f, false);
         this.dbType = dbType;
+    }
+
+    public void incrementActiveConnectionCount() {
+        activeConnectionCount.incrementAndGet();
+    }
+
+    public void decrementActiveConnectionCount() {
+        activeConnectionCount.decrementAndGet();
     }
 
     public void reset() {
@@ -67,7 +77,7 @@ public class ProxyServerStat {
             lock.readLock().unlock();
         }
     }
-    
+
     public JdbcSqlStat createSqlStat(String sql) {
         lock.writeLock().lock();
         try {

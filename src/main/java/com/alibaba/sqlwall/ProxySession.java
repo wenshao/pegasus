@@ -1,13 +1,13 @@
 package com.alibaba.sqlwall;
 
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_INIT;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.jboss.netty.channel.Channel;
 
 import com.alibaba.druid.stat.JdbcSqlStat;
-
-import static com.alibaba.sqlwall.ProxySessionStat.STAT_INIT;
 
 public class ProxySession {
 
@@ -38,8 +38,11 @@ public class ProxySession {
     private volatile long                         commandQueryStartNano;
     private long                                  commandQueryExecuteEndNano;
 
+    private long                                  connectMillis;
+
     public ProxySession(Channel frontChannel){
         this.frontChannel = frontChannel;
+        this.connectMillis = System.currentTimeMillis();
     }
 
     public long getCommandQueryStartNano() {
@@ -162,7 +165,7 @@ public class ProxySession {
         return currentLocal.get();
     }
 
-    public boolean check(String sql) {
-        return true;
+    public long getConnectMillis() {
+        return this.connectMillis;
     }
 }

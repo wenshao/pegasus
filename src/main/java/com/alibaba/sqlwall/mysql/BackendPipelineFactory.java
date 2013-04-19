@@ -8,9 +8,15 @@ import com.alibaba.sqlwall.ProxySession;
 
 public final class BackendPipelineFactory implements ChannelPipelineFactory {
 
+    private final MySqlProxyServer proxyServer;
+
+    public BackendPipelineFactory(MySqlProxyServer proxyServer){
+        this.proxyServer = proxyServer;
+    }
+
     public ChannelPipeline getPipeline() throws Exception {
         ProxySession session = ProxySession.current();
-        BackendHanlder handler = new BackendHanlder(session);
+        BackendHanlder handler = new BackendHanlder(proxyServer, session);
         BackendDecoder decoder = new BackendDecoder(session);
 
         ChannelPipeline pipeline = Channels.pipeline(decoder, //
