@@ -33,7 +33,7 @@ public class BackendHanlder extends SimpleChannelUpstreamHandler {
 
         session.setBackendContext(channel);
         
-        proxyServer.incrementSessionCount();
+        proxyServer.getProxyStat().incrementSessionCount();
         
         ctx.sendUpstream(e);
     }
@@ -55,6 +55,8 @@ public class BackendHanlder extends SimpleChannelUpstreamHandler {
                 frontChannel.close();
             }
         }
+        
+        proxyServer.getProxyStat().decrementSessionCount();
 
         ctx.sendUpstream(e);
     }

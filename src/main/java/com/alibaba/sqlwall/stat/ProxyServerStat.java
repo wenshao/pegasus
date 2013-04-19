@@ -3,7 +3,6 @@ package com.alibaba.sqlwall.stat;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -12,29 +11,64 @@ import com.alibaba.druid.util.LRUCache;
 
 public class ProxyServerStat {
 
-    private ReentrantReadWriteLock                   lock                  = new ReentrantReadWriteLock();
-    public int                                       maxSize               = 1000 * 1;
+    private final ReentrantReadWriteLock             lock          = new ReentrantReadWriteLock();
+    private final int                                maxSize       = 1000 * 1;
     private final LinkedHashMap<String, JdbcSqlStat> sqlStatMap;
 
-    private final AtomicLong                         clobOpenCount         = new AtomicLong();
+    private final AtomicLong                         clobOpenCount = new AtomicLong();
 
-    private final AtomicLong                         blobOpenCount         = new AtomicLong();
+    private final AtomicLong                         blobOpenCount = new AtomicLong();
 
     private final String                             dbType;
 
-    private final AtomicInteger                      activeConnectionCount = new AtomicInteger();
+    private final AtomicLong                         sessionCount  = new AtomicLong();
+    private final AtomicLong                         runningMax    = new AtomicLong();
+
+    private final AtomicLong                         acceptedCount = new AtomicLong();
+    private final AtomicLong                         closedCount   = new AtomicLong();
 
     public ProxyServerStat(String dbType){
         sqlStatMap = new LRUCache<String, JdbcSqlStat>(maxSize, 16, 0.75f, false);
         this.dbType = dbType;
     }
 
-    public void incrementActiveConnectionCount() {
-        activeConnectionCount.incrementAndGet();
+    public long getClosedCount() {
+        return this.closedCount.get();
     }
 
-    public void decrementActiveConnectionCount() {
-        activeConnectionCount.decrementAndGet();
+    public long incrementAndGetClosedCount() {
+        return this.closedCount.incrementAndGet();
+    }
+
+    public long getAcceptedCount() {
+        return this.acceptedCount.get();
+    }
+
+    public long incrementAcceptedCount() {
+        return this.acceptedCount.incrementAndGet();
+    }
+
+    public void decrementSessionCount() {
+        this.sessionCount.decrementAndGet();
+    }
+
+    public void incrementSessionCount() {
+        long current = this.sessionCount.incrementAndGet();
+        for (;;) {
+            long max = this.runningMax.get();
+            if (current > max) {
+                boolean success = this.runningMax.compareAndSet(max, current);
+                if (success) {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    public long getSessionCount() {
+        return sessionCount.get();
     }
 
     public void reset() {

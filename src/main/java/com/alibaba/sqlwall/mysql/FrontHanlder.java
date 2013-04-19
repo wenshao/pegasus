@@ -20,8 +20,7 @@ public class FrontHanlder extends SimpleChannelUpstreamHandler {
     }
 
     public void channelBound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        long acceptedCount = proxyServer.acceptedCount.incrementAndGet();
-        proxyServer.incrementSessionCount();
+        long acceptedCount = proxyServer.getProxyStat().incrementAcceptedCount();
 
         Channel channel = e.getChannel();
         if (LOG.isDebugEnabled()) {
@@ -38,8 +37,7 @@ public class FrontHanlder extends SimpleChannelUpstreamHandler {
     }
 
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        proxyServer.closedCount.incrementAndGet();
-        proxyServer.decrementSessionCount();
+        proxyServer.getProxyStat().incrementAndGetClosedCount();
         
         Channel channel = e.getChannel();
         if (LOG.isDebugEnabled()) {

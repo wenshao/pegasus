@@ -8,7 +8,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -39,11 +38,6 @@ public class MySqlProxyServer {
     private int                           workerThreadCount      = Runtime.getRuntime().availableProcessors();
 
     private NioServerSocketChannelFactory channelFactory;
-
-    final AtomicLong                      acceptedCount          = new AtomicLong();
-    final AtomicLong                      closedCount            = new AtomicLong();
-    private final AtomicLong              sessionCount           = new AtomicLong();
-    private final AtomicLong              runningMax             = new AtomicLong();
 
     private FrontDecoder                  decoder;
 
@@ -139,37 +133,6 @@ public class MySqlProxyServer {
         }
     }
 
-    void decrementSessionCount() {
-        this.sessionCount.decrementAndGet();
-    }
-
-    void incrementSessionCount() {
-        long current = this.sessionCount.incrementAndGet();
-        for (;;) {
-            long max = this.runningMax.get();
-            if (current > max) {
-                boolean success = this.runningMax.compareAndSet(max, current);
-                if (success) {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-    }
-
-    public long getSessionCount() {
-        return sessionCount.get();
-    }
-
-    public long getClosedCount() {
-        return this.closedCount.get();
-    }
-
-    public long getAcceptedCount() {
-        return this.acceptedCount.get();
-    }
-
     public long getReceivedBytes() {
         return this.decoder.getRecevedBytes();
     }
@@ -180,8 +143,6 @@ public class MySqlProxyServer {
 
     public void resetStat() {
         this.decoder.resetStat();
-
-        this.acceptedCount.set(0);
-        this.closedCount.set(0);
+        this.getProxyStat().reset();
     }
 }
