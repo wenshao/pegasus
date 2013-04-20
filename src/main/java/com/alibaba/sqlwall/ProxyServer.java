@@ -1,4 +1,4 @@
-package com.alibaba.sqlwall.mysql;
+package com.alibaba.sqlwall;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -24,12 +24,16 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import com.alibaba.druid.util.JdbcConstants;
 import com.alibaba.druid.wall.WallProvider;
 import com.alibaba.druid.wall.spi.MySqlWallProvider;
+import com.alibaba.sqlwall.config.ProxyConfig;
 import com.alibaba.sqlwall.listener.ExecuteBeforeListener;
+import com.alibaba.sqlwall.mysql.BackendPipelineFactory;
+import com.alibaba.sqlwall.mysql.FrontDecoder;
+import com.alibaba.sqlwall.mysql.FrontHanlder;
 import com.alibaba.sqlwall.stat.ProxyServerStat;
 
-public class MySqlProxyServer {
+public class ProxyServer {
 
-    static Log                            LOG                    = LogFactory.getLog(MySqlProxyServer.class);
+    static Log                            LOG                    = LogFactory.getLog(ProxyServer.class);
 
     private ServerBootstrap               bootstrap;
     private ThreadPoolExecutor            bossExecutor;
@@ -56,7 +60,9 @@ public class MySqlProxyServer {
 
     private ChannelBufferFactory          bufferFactory          = new HeapChannelBufferFactory(ByteOrder.LITTLE_ENDIAN);
 
-    public MySqlProxyServer(String remoteHost, int remotePort){
+    private ProxyConfig                   config                 = new ProxyConfig();
+
+    public ProxyServer(String remoteHost, int remotePort){
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
 
@@ -92,7 +98,7 @@ public class MySqlProxyServer {
 
             public ChannelPipeline getPipeline() throws Exception {
                 return Channels.pipeline(decoder, //
-                                         new FrontHanlder(MySqlProxyServer.this) //
+                                         new FrontHanlder(ProxyServer.this) //
                 );
             }
 

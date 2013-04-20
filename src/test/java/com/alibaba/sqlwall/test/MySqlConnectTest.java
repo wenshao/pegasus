@@ -16,7 +16,7 @@ import com.alibaba.sqlwall.stat.ProxyServerStat;
 public class MySqlConnectTest extends TestCase {
 
     public void test_connect() throws Exception {
-        MySqlProxyServer server = new MySqlProxyServer("hbase-01", 3306);
+        ProxyServer server = new ProxyServer("hbase-01", 3306);
         server.start();
         
 //        Thread.sleep(1000 * 3600 * 10);

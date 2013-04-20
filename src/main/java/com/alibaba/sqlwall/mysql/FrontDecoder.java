@@ -1,7 +1,9 @@
 package com.alibaba.sqlwall.mysql;
 
-import static com.alibaba.sqlwall.ProxySessionStat.*;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_AUTH;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_QUERY;
 import static com.alibaba.sqlwall.ProxySessionStat.STAT_CMD_STMT_PREPARE;
+import static com.alibaba.sqlwall.ProxySessionStat.STAT_HANDSHAKE;
 import static com.alibaba.sqlwall.ProxySessionStat.STAT_UNKOWN;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_QUERY;
 import static com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket.COM_STMT_CLOSE;
@@ -21,6 +23,7 @@ import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 import com.alibaba.druid.stat.JdbcSqlStat;
 import com.alibaba.druid.wall.WallCheckResult;
 import com.alibaba.druid.wall.WallProvider;
+import com.alibaba.sqlwall.ProxyServer;
 import com.alibaba.sqlwall.ProxySession;
 import com.alibaba.sqlwall.mysql.protocol.mysql.AuthPacket;
 import com.alibaba.sqlwall.mysql.protocol.mysql.CommandPacket;
@@ -37,9 +40,9 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
     private final AtomicLong       receivedBytes        = new AtomicLong();
     private final AtomicLong       receivedMessageCount = new AtomicLong();
 
-    private final MySqlProxyServer proxyServer;
+    private final ProxyServer proxyServer;
 
-    public FrontDecoder(MySqlProxyServer proxyServer){
+    public FrontDecoder(ProxyServer proxyServer){
         super(maxFrameLength, lengthFieldOffset, lengthFieldLength, 1, 0);
         this.proxyServer = proxyServer;
     }

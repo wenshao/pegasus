@@ -15,7 +15,7 @@ import com.alibaba.sqlwall.mysql.MySqlProxyServer;
 public class MySqlWallTest extends TestCase {
 
     public void test_connect() throws Exception {
-        MySqlProxyServer server = new MySqlProxyServer("hbase-01", 3306);
+        ProxyServer server = new ProxyServer("hbase-01", 3306);
         server.start();
 
         // jdbc:mysql://scuritytest.mysql.rds.aliyuncs.com:3306/mysql

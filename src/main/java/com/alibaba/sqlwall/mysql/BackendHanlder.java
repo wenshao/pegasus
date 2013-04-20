@@ -7,16 +7,17 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 
+import com.alibaba.sqlwall.ProxyServer;
 import com.alibaba.sqlwall.ProxySession;
 
 public class BackendHanlder extends SimpleChannelUpstreamHandler {
 
     private static Log         LOG = LogFactory.getLog(BackendHanlder.class);
 
-    private final MySqlProxyServer proxyServer;
+    private final ProxyServer proxyServer;
     private final ProxySession session;
 
-    public BackendHanlder(MySqlProxyServer proxyServer, ProxySession session){
+    public BackendHanlder(ProxyServer proxyServer, ProxySession session){
         this.proxyServer = proxyServer;
         this.session = session;
     }

@@ -4,13 +4,14 @@ import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
 
+import com.alibaba.sqlwall.ProxyServer;
 import com.alibaba.sqlwall.ProxySession;
 
 public final class BackendPipelineFactory implements ChannelPipelineFactory {
 
-    private final MySqlProxyServer proxyServer;
+    private final ProxyServer proxyServer;
 
-    public BackendPipelineFactory(MySqlProxyServer proxyServer){
+    public BackendPipelineFactory(ProxyServer proxyServer){
         this.proxyServer = proxyServer;
     }
 
