@@ -24,7 +24,7 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import com.alibaba.druid.util.JdbcConstants;
 import com.alibaba.druid.wall.WallProvider;
 import com.alibaba.druid.wall.spi.MySqlWallProvider;
-import com.alibaba.pegasus.config.ServerConfig;
+import com.alibaba.pegasus.config.PegasusConfig;
 import com.alibaba.pegasus.listener.ExecuteBeforeListener;
 import com.alibaba.pegasus.mysql.BackendPipelineFactory;
 import com.alibaba.pegasus.mysql.FrontDecoder;
@@ -58,7 +58,7 @@ public class PegasusServer {
 
     private ChannelBufferFactory          bufferFactory          = new HeapChannelBufferFactory(ByteOrder.LITTLE_ENDIAN);
 
-    private ServerConfig                  config                 = new ServerConfig();
+    private PegasusConfig                 config                 = new PegasusConfig();
 
     public PegasusServer(String remoteHost, int remotePort){
         this.remoteHost = remoteHost;
