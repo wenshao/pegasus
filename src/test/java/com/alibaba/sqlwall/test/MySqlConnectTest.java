@@ -10,15 +10,15 @@ import java.util.Properties;
 import junit.framework.TestCase;
 
 import com.alibaba.druid.util.JdbcUtils;
-import com.alibaba.sqlwall.ProxyServer;
-import com.alibaba.sqlwall.config.ProxyConfig;
+import com.alibaba.pegasus.PegasusServer;
+import com.alibaba.pegasus.config.ProxyConfig;
 
 public class MySqlConnectTest extends TestCase {
 
     public void test_connect() throws Exception {
         ProxyConfig config = new ProxyConfig();
         
-        ProxyServer server = new ProxyServer("hbase-01", 3306);
+        PegasusServer server = new PegasusServer("hbase-01", 3306);
         server.start();
         
 //        Thread.sleep(1000 * 3600 * 10);

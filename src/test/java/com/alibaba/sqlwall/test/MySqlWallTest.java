@@ -9,12 +9,12 @@ import java.util.Properties;
 import junit.framework.TestCase;
 
 import com.alibaba.druid.util.JdbcUtils;
-import com.alibaba.sqlwall.ProxyServer;
+import com.alibaba.pegasus.PegasusServer;
 
 public class MySqlWallTest extends TestCase {
 
     public void test_connect() throws Exception {
-        ProxyServer server = new ProxyServer("hbase-01", 3306);
+        PegasusServer server = new PegasusServer("hbase-01", 3306);
         server.start();
 
         // jdbc:mysql://scuritytest.mysql.rds.aliyuncs.com:3306/mysql
