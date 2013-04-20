@@ -1,6 +1,6 @@
 package com.alibaba.sqlwall.config;
 
-public abstract class Db {
+public abstract class DbConfig {
     private int    port;
     private String host;
     

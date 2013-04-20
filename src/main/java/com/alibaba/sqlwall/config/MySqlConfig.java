@@ -1,5 +1,5 @@
 package com.alibaba.sqlwall.config;
 
-public class MySql extends Db {
+public class MySqlConfig extends DbConfig {
     
 }

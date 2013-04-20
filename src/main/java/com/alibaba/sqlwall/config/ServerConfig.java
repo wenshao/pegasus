@@ -4,13 +4,13 @@ import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Server {
+public class ServerConfig {
 
-    private List<SocketAddress> addresses         = new ArrayList<SocketAddress>();
+    private List<SocketAddress> addresses = new ArrayList<SocketAddress>();
 
-    private Db                  db;
+    private DbConfig            db;
 
-    public Server(){
+    public ServerConfig(){
 
     }
 
@@ -22,11 +22,11 @@ public class Server {
         this.addresses = addresses;
     }
 
-    public Db getDb() {
+    public DbConfig getDb() {
         return db;
     }
 
-    public void setDb(Db db) {
+    public void setDb(DbConfig db) {
         this.db = db;
     }
 }

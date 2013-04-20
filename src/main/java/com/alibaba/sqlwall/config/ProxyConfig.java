@@ -6,7 +6,7 @@ import java.util.List;
 public class ProxyConfig {
 
     private int          workerThreadCount = 2;
-    private List<Server> servers           = new ArrayList<Server>();
+    private List<ServerConfig> servers           = new ArrayList<ServerConfig>();
     
     public ProxyConfig() {
         
@@ -22,11 +22,11 @@ public class ProxyConfig {
 
 
 
-    public List<Server> getServers() {
+    public List<ServerConfig> getServers() {
         return servers;
     }
 
-    public void setServers(List<Server> servers) {
+    public void setServers(List<ServerConfig> servers) {
         this.servers = servers;
     }
 }
