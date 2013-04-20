@@ -23,7 +23,7 @@ import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 import com.alibaba.druid.stat.JdbcSqlStat;
 import com.alibaba.druid.wall.WallCheckResult;
 import com.alibaba.druid.wall.WallProvider;
-import com.alibaba.pegasus.PegasusServer;
+import com.alibaba.pegasus.DbProxy;
 import com.alibaba.pegasus.ProxySession;
 import com.alibaba.pegasus.mysql.protocol.mysql.AuthPacket;
 import com.alibaba.pegasus.mysql.protocol.mysql.CommandPacket;
@@ -31,20 +31,20 @@ import com.alibaba.pegasus.mysql.protocol.mysql.ErrorPacket;
 
 public class FrontDecoder extends LengthFieldBasedFrameDecoder {
 
-    private final static Log       LOG                  = LogFactory.getLog(FrontDecoder.class);
+    private final static Log LOG                  = LogFactory.getLog(FrontDecoder.class);
 
-    private final static int       maxFrameLength       = 1024 * 1024 * 16;                     // 1m
-    private final static int       lengthFieldOffset    = 0;
-    private final static int       lengthFieldLength    = 3;
+    private final static int maxFrameLength       = 1024 * 1024 * 16;                     // 1m
+    private final static int lengthFieldOffset    = 0;
+    private final static int lengthFieldLength    = 3;
 
-    private final AtomicLong       receivedBytes        = new AtomicLong();
-    private final AtomicLong       receivedMessageCount = new AtomicLong();
+    private final AtomicLong receivedBytes        = new AtomicLong();
+    private final AtomicLong receivedMessageCount = new AtomicLong();
 
-    private final PegasusServer proxyServer;
+    private final DbProxy    proxy;
 
-    public FrontDecoder(PegasusServer proxyServer){
+    public FrontDecoder(DbProxy proxy){
         super(maxFrameLength, lengthFieldOffset, lengthFieldLength, 1, 0);
-        this.proxyServer = proxyServer;
+        this.proxy = proxy;
     }
 
     public long getRecevedBytes() {
@@ -52,7 +52,7 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
     }
 
     public WallProvider getWallProvider() {
-        return proxyServer.getWallProvider();
+        return proxy.getWallProvider();
     }
 
     public long getReceivedMessageCount() {
@@ -104,7 +104,7 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
                 switch (command) {
                     case COM_QUERY: {
                         String sql = new String(packet.arg, session.getCharset());
-                        JdbcSqlStat sqlStat = proxyServer.getProxyStat().createSqlStat(sql);
+                        JdbcSqlStat sqlStat = proxy.getServer().getProxyStat().createSqlStat(sql);
 
                         session.setSql(sql);
                         session.setSqlStat(sqlStat);
@@ -185,7 +185,7 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
             errorPacket.sqlState = "12345".getBytes();
 
             int size = errorPacket.calcPacketSize() + 4;
-            ChannelBuffer errorBuffer = proxyServer.getBufferFactory().getBuffer(size);
+            ChannelBuffer errorBuffer = proxy.getServer().getBufferFactory().getBuffer(size);
             errorPacket.write(errorBuffer);
             channel.write(errorBuffer);
         } else {

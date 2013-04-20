@@ -7,18 +7,18 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 
-import com.alibaba.pegasus.PegasusServer;
+import com.alibaba.pegasus.DbProxy;
 import com.alibaba.pegasus.ProxySession;
 
 public class BackendHanlder extends SimpleChannelUpstreamHandler {
 
     private static Log         LOG = LogFactory.getLog(BackendHanlder.class);
 
-    private final PegasusServer proxyServer;
+    private final DbProxy      proxy;
     private final ProxySession session;
 
-    public BackendHanlder(PegasusServer proxyServer, ProxySession session){
-        this.proxyServer = proxyServer;
+    public BackendHanlder(DbProxy proxy, ProxySession session){
+        this.proxy = proxy;
         this.session = session;
     }
 
@@ -33,9 +33,9 @@ public class BackendHanlder extends SimpleChannelUpstreamHandler {
         }
 
         session.setBackendContext(channel);
-        
-        proxyServer.getProxyStat().incrementSessionCount();
-        
+
+        proxy.getServer().getProxyStat().incrementSessionCount();
+
         ctx.sendUpstream(e);
     }
 
@@ -56,8 +56,8 @@ public class BackendHanlder extends SimpleChannelUpstreamHandler {
                 frontChannel.close();
             }
         }
-        
-        proxyServer.getProxyStat().decrementSessionCount();
+
+        proxy.getServer().getProxyStat().decrementSessionCount();
 
         ctx.sendUpstream(e);
     }

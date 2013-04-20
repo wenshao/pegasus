@@ -1,8 +1,7 @@
 package com.alibaba.pegasus;
 
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.SynchronousQueue;
@@ -11,46 +10,24 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.jboss.netty.bootstrap.ClientBootstrap;
-import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.buffer.ChannelBufferFactory;
 import org.jboss.netty.buffer.HeapChannelBufferFactory;
-import org.jboss.netty.channel.ChannelPipeline;
-import org.jboss.netty.channel.ChannelPipelineFactory;
-import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
 import com.alibaba.druid.util.JdbcConstants;
-import com.alibaba.druid.wall.WallProvider;
-import com.alibaba.druid.wall.spi.MySqlWallProvider;
 import com.alibaba.pegasus.config.PegasusConfig;
+import com.alibaba.pegasus.config.ProxyConfig;
 import com.alibaba.pegasus.listener.ExecuteBeforeListener;
-import com.alibaba.pegasus.mysql.BackendPipelineFactory;
-import com.alibaba.pegasus.mysql.FrontDecoder;
-import com.alibaba.pegasus.mysql.FrontHanlder;
 import com.alibaba.pegasus.stat.ProxyServerStat;
 
 public class PegasusServer {
 
     private final static Log              LOG                    = LogFactory.getLog(PegasusServer.class);
 
-    private ServerBootstrap               bootstrap;
     private ThreadPoolExecutor            bossExecutor;
     private ThreadPoolExecutor            workerExecutor;
 
     private NioServerSocketChannelFactory channelFactory;
-
-    private FrontDecoder                  decoder;
-
-    private ClientBootstrap               client;
-
-    private String                        remoteHost;
-    private int                           remotePort;
-
-    private int                           listenPort             = 3306;
-
-    private WallProvider                  wallProvider;
 
     private ProxyServerStat               serverStat             = new ProxyServerStat(JdbcConstants.MYSQL);
 
@@ -60,28 +37,28 @@ public class PegasusServer {
 
     private PegasusConfig                 config                 = new PegasusConfig();
 
-    public PegasusServer(String remoteHost, int remotePort){
-        this.remoteHost = remoteHost;
-        this.remotePort = remotePort;
+    private final List<DbProxy>           proxyList              = new ArrayList<DbProxy>();
 
-        wallProvider = new MySqlWallProvider();
+    public PegasusServer(){
+    }
 
+    public PegasusConfig getConfig() {
+        return config;
     }
 
     public ProxyServerStat getProxyStat() {
         return this.serverStat;
     }
 
-    public WallProvider getWallProvider() {
-        return wallProvider;
-    }
-
     public List<ExecuteBeforeListener> getExecuteBeforeListeners() {
         return executeBeforeListeners;
     }
 
+    public NioServerSocketChannelFactory getChannelFactory() {
+        return channelFactory;
+    }
+
     public void start() {
-        decoder = new FrontDecoder(this);
 
         bossExecutor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
                                               new SynchronousQueue<Runnable>());
@@ -90,64 +67,32 @@ public class PegasusServer {
 
         channelFactory = new NioServerSocketChannelFactory(bossExecutor, workerExecutor, config.getWorkerThreadCount());
 
-        bootstrap = new ServerBootstrap(channelFactory);
-        bootstrap.setOption("child.bufferFactory", bufferFactory);
+        for (ProxyConfig proxyConfig : this.config.getProxyList()) {
+            DbProxy proxy = new DbProxy(this, proxyConfig);
+            proxy.start();
 
-        bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-
-            public ChannelPipeline getPipeline() throws Exception {
-                return Channels.pipeline(decoder, //
-                                         new FrontHanlder(PegasusServer.this) //
-                );
-            }
-
-        });
-
-        SocketAddress address = new InetSocketAddress("0.0.0.0", listenPort);
-        bootstrap.bind(address);
-        if (LOG.isInfoEnabled()) {
-            LOG.info("Leviathan Server listening " + address);
+            proxyList.add(proxy);
         }
-
-        if (LOG.isInfoEnabled()) {
-            LOG.info("Leviathan Server started.");
-        }
-
-        client = new ClientBootstrap();
-        client.setOption("bufferFactory", bufferFactory);
-        client.setPipelineFactory(new BackendPipelineFactory(this));
-        client.setFactory(new NioClientSocketChannelFactory());
     }
 
     public ChannelBufferFactory getBufferFactory() {
         return bufferFactory;
     }
 
-    public ClientBootstrap getBackendBootstrap() {
-        return client;
-    }
-
-    public void connectRemote() {
-        client.connect(new InetSocketAddress(remoteHost, remotePort));
-    }
-
     public void stop() {
-        bootstrap.shutdown();
+        for (DbProxy proxy : this.proxyList) {
+            proxy.stop();
+        }
+
         if (LOG.isInfoEnabled()) {
-            LOG.info("Leviathan Server stoped.");
+            LOG.info("Pegasus stoped.");
         }
     }
 
-    public long getReceivedBytes() {
-        return this.decoder.getRecevedBytes();
-    }
-
-    public long getReceivedMessageCount() {
-        return this.decoder.getReceivedMessageCount();
-    }
-
     public void resetStat() {
-        this.decoder.resetStat();
+        for (DbProxy proxy : this.proxyList) {
+            proxy.resetStat();
+        }
         this.getProxyStat().reset();
     }
 }

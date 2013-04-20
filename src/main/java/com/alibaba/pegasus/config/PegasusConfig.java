@@ -5,8 +5,8 @@ import java.util.List;
 
 public class PegasusConfig {
 
-    private int                 workerThreadCount = 2;
-    private List<PegasusConfig> servers           = new ArrayList<PegasusConfig>();
+    private int               workerThreadCount = 2;
+    private List<ProxyConfig> proxyList         = new ArrayList<ProxyConfig>();
 
     public PegasusConfig(){
 
@@ -20,12 +20,12 @@ public class PegasusConfig {
         this.workerThreadCount = workerThreadCount;
     }
 
-    public List<PegasusConfig> getServers() {
-        return servers;
+    public List<ProxyConfig> getProxyList() {
+        return proxyList;
     }
 
-    public void setServers(List<PegasusConfig> servers) {
-        this.servers = servers;
+    public void setProxyList(List<ProxyConfig> proxyList) {
+        this.proxyList = proxyList;
     }
 
 }
