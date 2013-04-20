@@ -24,7 +24,7 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import com.alibaba.druid.util.JdbcConstants;
 import com.alibaba.druid.wall.WallProvider;
 import com.alibaba.druid.wall.spi.MySqlWallProvider;
-import com.alibaba.sqlwall.config.ProxyConfig;
+import com.alibaba.sqlwall.config.ServerConfig;
 import com.alibaba.sqlwall.listener.ExecuteBeforeListener;
 import com.alibaba.sqlwall.mysql.BackendPipelineFactory;
 import com.alibaba.sqlwall.mysql.FrontDecoder;
@@ -33,13 +33,11 @@ import com.alibaba.sqlwall.stat.ProxyServerStat;
 
 public class ProxyServer {
 
-    static Log                            LOG                    = LogFactory.getLog(ProxyServer.class);
+    private final static Log              LOG                    = LogFactory.getLog(ProxyServer.class);
 
     private ServerBootstrap               bootstrap;
     private ThreadPoolExecutor            bossExecutor;
     private ThreadPoolExecutor            workerExecutor;
-
-    private int                           workerThreadCount      = Runtime.getRuntime().availableProcessors();
 
     private NioServerSocketChannelFactory channelFactory;
 
@@ -60,7 +58,7 @@ public class ProxyServer {
 
     private ChannelBufferFactory          bufferFactory          = new HeapChannelBufferFactory(ByteOrder.LITTLE_ENDIAN);
 
-    private ProxyConfig                   config                 = new ProxyConfig();
+    private ServerConfig                  config                 = new ServerConfig();
 
     public ProxyServer(String remoteHost, int remotePort){
         this.remoteHost = remoteHost;
@@ -90,7 +88,8 @@ public class ProxyServer {
         workerExecutor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
                                                 new SynchronousQueue<Runnable>());
 
-        channelFactory = new NioServerSocketChannelFactory(bossExecutor, workerExecutor, workerThreadCount);
+        channelFactory = new NioServerSocketChannelFactory(bossExecutor, workerExecutor, config.getWorkerThreadCount());
+
         bootstrap = new ServerBootstrap(channelFactory);
         bootstrap.setOption("child.bufferFactory", bufferFactory);
 

@@ -1,32 +1,33 @@
 package com.alibaba.sqlwall.config;
 
+import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ProxyConfig {
 
-    private int          workerThreadCount = 2;
-    private List<ServerConfig> servers           = new ArrayList<ServerConfig>();
-    
-    public ProxyConfig() {
-        
-    }
-    
-    public int getWorkerThreadCount() {
-        return workerThreadCount;
-    }
-    
-    public void setWorkerThreadCount(int workerThreadCount) {
-        this.workerThreadCount = workerThreadCount;
+    private List<SocketAddress> addresses = new ArrayList<SocketAddress>();
+
+    private DbConfig            db;
+
+    public ProxyConfig(){
+
     }
 
-
-
-    public List<ServerConfig> getServers() {
-        return servers;
+    public List<SocketAddress> getAddresses() {
+        return addresses;
     }
 
-    public void setServers(List<ServerConfig> servers) {
-        this.servers = servers;
+    public void setAddresses(List<SocketAddress> addresses) {
+        this.addresses = addresses;
     }
+
+    public DbConfig getDb() {
+        return db;
+    }
+
+    public void setDb(DbConfig db) {
+        this.db = db;
+    }
+
 }

@@ -1,32 +1,31 @@
 package com.alibaba.sqlwall.config;
 
-import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ServerConfig {
 
-    private List<SocketAddress> addresses = new ArrayList<SocketAddress>();
+    private int                workerThreadCount = 2;
+    private List<ServerConfig> servers           = new ArrayList<ServerConfig>();
 
-    private DbConfig            db;
-
-    public ServerConfig(){
+    public ServerConfig() {
 
     }
 
-    public List<SocketAddress> getAddresses() {
-        return addresses;
+    public int getWorkerThreadCount() {
+        return workerThreadCount;
     }
 
-    public void setAddresses(List<SocketAddress> addresses) {
-        this.addresses = addresses;
+    public void setWorkerThreadCount(int workerThreadCount) {
+        this.workerThreadCount = workerThreadCount;
     }
 
-    public DbConfig getDb() {
-        return db;
+    public List<ServerConfig> getServers() {
+        return servers;
     }
 
-    public void setDb(DbConfig db) {
-        this.db = db;
+    public void setServers(List<ServerConfig> servers) {
+        this.servers = servers;
     }
+
 }

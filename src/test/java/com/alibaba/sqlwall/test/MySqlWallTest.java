@@ -2,7 +2,6 @@ package com.alibaba.sqlwall.test;
 
 import java.sql.Connection;
 import java.sql.Driver;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Properties;
@@ -10,7 +9,7 @@ import java.util.Properties;
 import junit.framework.TestCase;
 
 import com.alibaba.druid.util.JdbcUtils;
-import com.alibaba.sqlwall.mysql.MySqlProxyServer;
+import com.alibaba.sqlwall.ProxyServer;
 
 public class MySqlWallTest extends TestCase {
 

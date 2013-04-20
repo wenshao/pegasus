@@ -10,12 +10,14 @@ import java.util.Properties;
 import junit.framework.TestCase;
 
 import com.alibaba.druid.util.JdbcUtils;
-import com.alibaba.sqlwall.mysql.MySqlProxyServer;
-import com.alibaba.sqlwall.stat.ProxyServerStat;
+import com.alibaba.sqlwall.ProxyServer;
+import com.alibaba.sqlwall.config.ProxyConfig;
 
 public class MySqlConnectTest extends TestCase {
 
     public void test_connect() throws Exception {
+        ProxyConfig config = new ProxyConfig();
+        
         ProxyServer server = new ProxyServer("hbase-01", 3306);
         server.start();
         
