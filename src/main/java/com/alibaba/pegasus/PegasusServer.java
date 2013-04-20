@@ -7,6 +7,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -39,6 +42,9 @@ public class PegasusServer {
 
     private final List<DbProxy>           proxyList              = new ArrayList<DbProxy>();
 
+    private final Lock                    lock                   = new ReentrantLock();
+    private final Condition               stoped                 = lock.newCondition();
+
     public PegasusServer(){
     }
 
@@ -54,24 +60,29 @@ public class PegasusServer {
         return executeBeforeListeners;
     }
 
-    public NioServerSocketChannelFactory getChannelFactory() {
+    public NioServerSocketChannelFactory getServerChannelFactory() {
         return channelFactory;
     }
 
-    public void start() {
+    public final void start() {
+        lock.lock();
+        try {
+            bossExecutor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
+                                                  new SynchronousQueue<Runnable>());
+            workerExecutor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
+                                                    new SynchronousQueue<Runnable>());
 
-        bossExecutor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
-                                              new SynchronousQueue<Runnable>());
-        workerExecutor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
-                                                new SynchronousQueue<Runnable>());
+            channelFactory = new NioServerSocketChannelFactory(bossExecutor, workerExecutor,
+                                                               config.getWorkerThreadCount());
 
-        channelFactory = new NioServerSocketChannelFactory(bossExecutor, workerExecutor, config.getWorkerThreadCount());
+            for (ProxyConfig proxyConfig : this.config.getProxyList()) {
+                DbProxy proxy = new DbProxy(this, proxyConfig);
+                proxy.start();
 
-        for (ProxyConfig proxyConfig : this.config.getProxyList()) {
-            DbProxy proxy = new DbProxy(this, proxyConfig);
-            proxy.start();
-
-            proxyList.add(proxy);
+                proxyList.add(proxy);
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -79,13 +90,29 @@ public class PegasusServer {
         return bufferFactory;
     }
 
-    public void stop() {
-        for (DbProxy proxy : this.proxyList) {
-            proxy.stop();
-        }
+    public final void stop() {
+        lock.lock();
+        try {
+            for (DbProxy proxy : this.proxyList) {
+                proxy.stop();
+            }
 
-        if (LOG.isInfoEnabled()) {
-            LOG.info("Pegasus stoped.");
+            if (LOG.isInfoEnabled()) {
+                LOG.info("Pegasus stoped.");
+            }
+
+            stoped.signalAll();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public final void waitForStop() throws InterruptedException {
+        lock.lock();
+        try {
+            stoped.await();
+        } finally {
+            lock.unlock();
         }
     }
 

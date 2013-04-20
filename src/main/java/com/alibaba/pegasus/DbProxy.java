@@ -48,7 +48,7 @@ public class DbProxy {
     public void start() {
         frontDecoder = new FrontDecoder(this);
 
-        bootstrap = new ServerBootstrap(server.getChannelFactory());
+        bootstrap = new ServerBootstrap(server.getServerChannelFactory());
         bootstrap.setOption("child.bufferFactory", bufferFactory);
 
         bootstrap.setPipelineFactory(new ChannelPipelineFactory() {

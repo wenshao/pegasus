@@ -15,8 +15,8 @@
 				<version>3.0</version>
 				<configuration>
 					<encoding>UTF-8</encoding>
-					<source>1.6</source>
-					<target>1.6</target>
+					<source>1.7</source>
+					<target>1.7</target>
 				</configuration>
 			</plugin>
 		</plugins>
@@ -34,11 +34,30 @@
 			<version>1.2.16</version>
 		</dependency>
 
+<!--  
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-common</artifactId>
+			<version>4.0.0.CR1</version>
+		</dependency>
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-transport</artifactId>
+			<version>4.0.0.CR1</version>
+		</dependency>
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-buffer</artifactId>
+			<version>4.0.0.CR1</version>
+		</dependency>
+-->
+
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty</artifactId>
 			<version>3.6.5.Final</version>
 		</dependency>
+
 
 		<dependency>
 			<groupId>junit</groupId>

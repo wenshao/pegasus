@@ -86,7 +86,7 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                 String charset = CharsetUtil.getCharset(charsetIndex);
                 session.setCharset(charset);
                 session.setState(STAT_HANDSHAKE);
-                
+
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("rsp handshake, packetId " + packetId);
                 }
@@ -112,26 +112,34 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                 if (status == ERROR) {
                     ErrorPacket errorPacket = new ErrorPacket();
                     errorPacket.read(frame.array());
-                    System.out.println("-> resp error : " + packetId + " / " + status + ", len " + len);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("resp error : " + packetId + " / " + status + ", len " + len);
+                    }
                     session.setState(STAT_CMD_QUERY_RESP_ERROR);
                 } else if (status == EOF) {
                     EOFPacket packet = new EOFPacket();
                     packet.read(frame.array());
-                    System.out.println("-> resp eof : " + packetId + " / " + status + ", len " + len);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("resp eof : " + packetId + " / " + status + ", len " + len);
+                    }
                 } else if (status == OK) {
                     OkPacket packet = new OkPacket();
                     packet.read(frame.array());
                     session.setState(STAT_CMD_QUERY_RESP_EOF);
-                    System.out.println("-> resp ok : " + packetId + ", effectedRows " + packet.affectedRows + ", len "
-                                       + len + ", nanos " + NumberFormat.getInstance().format(execNanoSpan));
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("resp ok : " + packetId + ", effectedRows " + packet.affectedRows + ", len " + len
+                                  + ", nanos " + NumberFormat.getInstance().format(execNanoSpan));
+                    }
                 } else {
                     short fieldCount = frame.getUnsignedByte(4);
 
                     session.setFieldCount(fieldCount);
                     session.setState(STAT_CMD_QUERY_RESP_FIELD);
 
-                    System.out.println("-> resp field_count : " + packetId + ", status " + status + ", len " + len
-                                       + " -> " + fieldCount);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("resp field_count : " + packetId + ", status " + status + ", len " + len + " -> "
+                                  + fieldCount);
+                    }
                 }
 
                 JdbcSqlStat sqlStat = session.getSqlStat();
@@ -150,11 +158,15 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                     FieldPacket packet = new FieldPacket();
                     packet.read(frame.array());
                     String fieldName = new String(packet.name, session.getCharset());
-                    System.out.println("-> resp field : " + packetId + ", index " + session.getFieldIndex() + " -> "
-                                       + fieldName);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("resp field : " + packetId + ", index " + session.getFieldIndex() + " -> "
+                                  + fieldName);
+                    }
                 } else {
-                    System.out.println("-> resp field : " + packetId + ", index " + session.getFieldIndex() + ", "
-                                       + len + ", " + status);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("resp field : " + packetId + ", index " + session.getFieldIndex() + ", " + len + ", "
+                                  + status);
+                    }
                 }
                 if (fieldCount == session.getFieldCount()) {
                     session.setState(STAT_CMD_QUERY_RESP_ROW);
@@ -167,11 +179,15 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
                     long fetchRowNanos = nano - session.getCommandQueryExecuteEndNano();
 
                     session.setState(STAT_CMD_QUERY_RESP_ROW_EOF);
-                    System.out.println("-> resp row eof " + packetId + ", " + status + ", len " + len + ", nanos "
-                                       + NumberFormat.getInstance().format(fetchRowNanos));
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("resp row eof " + packetId + ", " + status + ", len " + len + ", nanos "
+                                  + NumberFormat.getInstance().format(fetchRowNanos));
+                    }
                 } else {
                     int rowCount = session.incrementAndGetRowIndex();
-                    System.out.println("-> resp row : " + packetId + ", index " + rowCount + ", len " + len);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("resp row : " + packetId + ", index " + rowCount + ", len " + len);
+                    }
                 }
             }
                 break;
@@ -184,22 +200,30 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
 
                     PStmtInfo stmtInfo = new PStmtInfo(stmtId, session.getSql(), columns, numberOfParams);
                     session.putStmt(stmtId, stmtInfo);
-                    System.out.println("-> resp stmt_prepare : " + packetId + ", len " + len + ", stmtId " + stmtId
-                                       + ", columns " + columns + ", params " + numberOfParams);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("resp stmt_prepare : " + packetId + ", len " + len + ", stmtId " + stmtId
+                                  + ", columns " + columns + ", params " + numberOfParams);
+                    }
                 } else {
-                    System.out.println("-> resp stmt_prepare error " + packetId);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("resp stmt_prepare error " + packetId);
+                    }
                 }
                 session.setSql(null);
             }
                 break;
             case STAT_CMD_STMT_PREPARE_RESP_COLUMN:
-                System.out.println("-> resp stmt_prepare_column " + packetId + ", status " + status + ", len " + len);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("resp stmt_prepare_column " + packetId + ", status " + status + ", len " + len);
+                }
                 if (status == EOF) {
                     session.setState(STAT_CMD_STMT_PREPARE_RESP_COLUMN_EOF);
                 }
                 break;
             case STAT_CMD_STMT_PREPARE_RESP_PARAM: {
-                System.out.println("-> resp stmt_prepare_param " + packetId + ", status " + status + ", len " + len);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("resp stmt_prepare_param " + packetId + ", status " + status + ", len " + len);
+                }
                 if (status == EOF) {
                     session.setState(STAT_CMD_STMT_PREPARE_RESP_COLUMN);
                 }
@@ -207,7 +231,9 @@ public class BackendDecoder extends LengthFieldBasedFrameDecoder {
             }
 
             default: {
-                System.out.println("-> resp status : " + packetId + " / " + status + ", " + len + ", stat " + stat);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("resp status : " + packetId + " / " + status + ", " + len + ", stat " + stat);
+                }
             }
                 break;
         }

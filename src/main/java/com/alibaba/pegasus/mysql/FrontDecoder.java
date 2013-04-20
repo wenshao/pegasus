@@ -93,7 +93,7 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
             session.setUser(packet.user);
             session.setState(STAT_AUTH);
             if (LOG.isDebugEnabled()) {
-                System.out.println("auth_req, packetId " + packetId + ", user " + packet.user);
+                LOG.debug("auth_req, packetId " + packetId + ", user " + packet.user);
             }
         } else {
             if (packetId == 0) {
@@ -113,7 +113,9 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
                             sqlStat.incrementRunningCount();
                         }
 
-                        System.out.println("<- req cmd_query : " + sql);
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("req cmd_query : " + sql);
+                        }
 
                         long nano = System.nanoTime();
                         session.setState(STAT_CMD_QUERY);
@@ -121,16 +123,6 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
                         session.setFieldIndex((short) -1);
                         session.setRowIndex(-1);
                         session.setCommandQueryStartNano(nano);
-
-                        // List<ExecuteBeforeListener> listeners = this.proxyServer.getExecuteBeforeListeners();
-                        // for (int i = 0; i < listeners.size(); ++i) {
-                        // ExecuteBeforeListener listener = listeners.get(i);
-                        // boolean result = listener.executeBefore(session, sql);
-                        // if (!result) {
-                        // result = true;
-                        // break;
-                        // }
-                        // }
 
                         WallCheckResult result = getWallProvider().check(sql);
                         if (result.getViolations().size() > 0) {
@@ -147,31 +139,46 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
                         session.setFieldIndex((short) -1);
                         session.setRowIndex(-1);
                         session.setCommandQueryStartNano(nano);
-                        System.out.println("<- req cmd_stmt_exec " + stmtId);
+
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("req cmd_stmt_exec " + stmtId);
+                        }
                     }
                         break;
                     case COM_STMT_PREPARE: {
                         session.setState(STAT_CMD_STMT_PREPARE);
                         String sql = new String(packet.arg, session.getCharset());
                         session.setSql(sql);
-                        System.out.println("<- req cmd_stmt_prepare : " + sql);
+
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("req cmd_stmt_prepare : " + sql);
+                        }
                     }
                         break;
                     case COM_STMT_CLOSE: {
                         int stmtId = frame.getInt(5);
                         session.remoteStmt(stmtId);
-                        System.out.println("<- req cmd_stmt_close " + stmtId);
+
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("req cmd_stmt_close " + stmtId);
+                        }
                     }
                         break;
                     case COM_QUIT:
-                        System.out.println("<- req cmd_quit");
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("req cmd_quit");
+                        }
                         break;
                     default:
-                        System.out.println("<- req cmd : " + command);
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("req cmd : " + command);
+                        }
                         break;
                 }
             } else {
-                System.out.println("<- req other : " + packetId);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("req other : " + packetId);
+                }
             }
         }
 
