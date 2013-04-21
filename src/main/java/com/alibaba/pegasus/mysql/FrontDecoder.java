@@ -17,6 +17,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 
@@ -196,7 +197,8 @@ public class FrontDecoder extends LengthFieldBasedFrameDecoder {
             errorPacket.write(errorBuffer);
             channel.write(errorBuffer);
         } else {
-            session.getBackendChannel().write(frame);
+            Channel backendChannel = session.getBackendChannel();
+            backendChannel.write(frame);
         }
         return null;
     }
