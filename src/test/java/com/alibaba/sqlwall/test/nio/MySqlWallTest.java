@@ -1,4 +1,4 @@
-package com.alibaba.sqlwall.test;
+package com.alibaba.sqlwall.test.nio;
 
 import java.sql.Connection;
 import java.sql.Driver;
@@ -8,13 +8,16 @@ import java.util.Properties;
 
 import junit.framework.TestCase;
 
-import com.alibaba.druid.util.JdbcUtils;
-import com.alibaba.pegasus.PegasusServer;
 import com.alibaba.pegasus.config.MySqlProxyConfig;
+import com.alibaba.pegasus.net.MySqlProxy;
 
 public class MySqlWallTest extends TestCase {
 
     public void test_connect() throws Exception {
+        MySqlProxyConfig config = new MySqlProxyConfig(3306, "hbase-01", 3306);
+        MySqlProxy proxy = new MySqlProxy(config);
+        proxy.start();
+
         // jdbc:mysql://scuritytest.mysql.rds.aliyuncs.com:3306/mysql
         Driver driver = new com.mysql.jdbc.Driver();
         Properties info = new Properties();
