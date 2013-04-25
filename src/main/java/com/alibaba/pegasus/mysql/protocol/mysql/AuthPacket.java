@@ -15,6 +15,9 @@
  */
 package com.alibaba.pegasus.mysql.protocol.mysql;
 
+import java.nio.ByteBuffer;
+
+import com.alibaba.pegasus.net.Bits;
 
 /**
  * From client to server during initial handshake.
@@ -36,15 +39,16 @@ package com.alibaba.pegasus.mysql.protocol.mysql;
  * @author xianmao.hexm 2010-7-15 下午04:35:34
  */
 public class AuthPacket extends MySQLPacket {
+
     private static final byte[] FILLER = new byte[23];
 
-    public long clientFlags;
-    public long maxPacketSize;
-    public int charsetIndex;
-    public byte[] extra;// from FILLER(23)
-    public String user;
-    public byte[] password;
-    public String database;
+    public long                 clientFlags;
+    public long                 maxPacketSize;
+    public int                  charsetIndex;
+    public byte[]               extra;                // from FILLER(23)
+    public String               user;
+    public byte[]               password;
+    public String               database;
 
     public void read(byte[] data) {
         MySQLMessage mm = new MySQLMessage(data);
@@ -64,10 +68,34 @@ public class AuthPacket extends MySQLPacket {
         mm.position(current + FILLER.length);
         user = mm.readStringWithNull();
         password = mm.readBytesWithLength();
-        if (((clientFlags & Capabilities.CLIENT_CONNECT_WITH_DB) != 0) && mm.hasRemaining()) {
+        if (((clientFlags & //
+            Capabilities.CLIENT_CONNECT_WITH_DB) != 0)
+            && mm.hasRemaining()) {
             database = mm.readStringWithNull();
         }
     }
 
-
+    public void read(ByteBuffer data) {
+        packetLength = Bits.getUnsignedMediumL(data);
+        packetId = data.get();
+        clientFlags = Bits.getUnsignedIntL(data);
+        maxPacketSize =Bits.getUnsignedIntL(data);
+        charsetIndex = (data.get() & 0xff);
+        // read extra
+        int current = data.position();
+        int len = (int) MySQLMessage.readLength(data);
+        if (len > 0 && len < FILLER.length) {
+            byte[] ab = new byte[len];
+            data.get(ab);
+            this.extra = ab;
+        }
+        data.position(current + FILLER.length);
+        user = MySQLMessage.readStringWithNull(data);
+        password = MySQLMessage.readBytesWithLength(data);
+        if (((clientFlags & //
+            Capabilities.CLIENT_CONNECT_WITH_DB) != 0)
+            && data.hasRemaining()) {
+            database = MySQLMessage.readStringWithNull(data);
+        }
+    }
 }

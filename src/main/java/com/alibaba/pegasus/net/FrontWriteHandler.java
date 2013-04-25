@@ -1,5 +1,7 @@
 package com.alibaba.pegasus.net;
 
+import static com.alibaba.pegasus.ProxySessionStat.*;
+
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
@@ -16,16 +18,36 @@ public class FrontWriteHandler implements CompletionHandler<Integer, Session> {
         if (LOG.isDebugEnabled()) {
             LOG.debug("writeBytes : " + count);
         }
-        
-        ByteBuffer buf = session.getBackendBuffer();
-        buf.clear();
-        
-        MySqlProxy proxy = session.getProxy();
 
-        BackendReadHandler frontReadHandler = proxy.getBackendReadHandler();
-        AsynchronousSocketChannel frontChannel = session.getBackendChannel();
+        int state = session.getState();
+        switch (state) {
+            case STAT_HANDSHAKE:
+            case STAT_AUTH_OK: {
+                ByteBuffer buf = session.getFrontBuffer();
+                buf.clear();
 
-        frontChannel.read(buf, session, frontReadHandler);
+                MySqlProxy proxy = session.getProxy();
+
+                FrontReadHandler frontReadHandler = proxy.getFrontReadHandler();
+                AsynchronousSocketChannel frontChannel = session.getFrontChannel();
+
+                frontChannel.read(buf, session, frontReadHandler);
+            }
+                break;
+            default:
+                LOG.error("TODO : ");
+                break;
+        }
+
+        // ByteBuffer buf = session.getBackendBuffer();
+        // buf.clear();
+        //
+        // MySqlProxy proxy = session.getProxy();
+        //
+        // BackendReadHandler frontReadHandler = proxy.getBackendReadHandler();
+        // AsynchronousSocketChannel frontChannel = session.getBackendChannel();
+        //
+        // frontChannel.read(buf, session, frontReadHandler);
     }
 
     @Override

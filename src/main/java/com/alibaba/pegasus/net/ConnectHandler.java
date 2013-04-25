@@ -15,7 +15,6 @@ public class ConnectHandler implements CompletionHandler<Void, Session> {
     @Override
     public void completed(Void result, Session session) {
         try {
-            AsynchronousSocketChannel frontChannel = session.getFrontChannel();
             AsynchronousSocketChannel backendChannel = session.getBackendChannel();
 
             if (LOG.isDebugEnabled()) {
@@ -24,13 +23,8 @@ public class ConnectHandler implements CompletionHandler<Void, Session> {
 
             MySqlProxy proxy = session.getProxy();
 
-            ByteBuffer frontBuffer = session.getFrontBuffer();
             ByteBuffer backendBuffer = session.getBackendBuffer();
-
-            FrontReadHandler frontReadHandler = proxy.getFrontReadHandler();
             BackendReadHandler backendReadHandler = proxy.getBackendReadHandler();
-
-            frontChannel.read(frontBuffer, session, frontReadHandler);
             backendChannel.read(backendBuffer, session, backendReadHandler);
         } catch (IOException ex) {
             LOG.error("open backendChannel error", ex);

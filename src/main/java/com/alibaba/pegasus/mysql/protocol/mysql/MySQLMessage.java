@@ -17,10 +17,13 @@ package com.alibaba.pegasus.mysql.protocol.mysql;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.Calendar;
+
+import com.alibaba.pegasus.net.Bits;
 
 /**
  * @author xianmao.hexm
@@ -135,7 +138,23 @@ public class MySQLMessage {
         case 253:
             return readUB3();
         case 254:
-            return readLong();
+            return readLong(); // may be error
+        default:
+            return length;
+        }
+    }
+    
+    public static long readLength(ByteBuffer data) {
+        int length = data.get() & 0xff;
+        switch (length) {
+        case 251:
+            return NULL_LENGTH;
+        case 252:
+            return Bits.getUnsignedShortL(data);
+        case 253:
+            return Bits.getUnsignedShortL(data);
+        case 254:
+            return Bits.getUnsignedIntL(data);
         default:
             return length;
         }
@@ -186,6 +205,39 @@ public class MySQLMessage {
             return ab2;
         }
     }
+    
+    public static byte[] readBytesWithNull(ByteBuffer buf) {
+        int limit = buf.limit();
+        int position = buf.position();
+        
+        if (position >= limit) {
+            return EMPTY_BYTES;
+        }
+        
+        int offset = -1;
+        for (int i = position; i < limit; i++) {
+            if (buf.get(i) == 0) {
+                offset = i;
+                break;
+            }
+        }
+        
+        switch (offset) {
+        case -1:
+            byte[] ab1 = new byte[limit - position];
+            buf.get(ab1);
+            buf.get();
+            return ab1;
+        case 0:
+            position++;
+            return EMPTY_BYTES;
+        default:
+            byte[] ab2 = new byte[offset - position];
+            buf.get(ab2);
+            buf.get();
+            return ab2;
+        }
+    }
 
     public byte[] readBytesWithLength() {
         int length = (int) readLength();
@@ -195,6 +247,18 @@ public class MySQLMessage {
         byte[] ab = new byte[length];
         System.arraycopy(data, position, ab, 0, ab.length);
         position += length;
+        return ab;
+    }
+    
+    public static byte[] readBytesWithLength(ByteBuffer data) {
+        int length = (int) readLength(data);
+        if (length <= 0) {
+            return EMPTY_BYTES;
+        }
+        int position = data.position();
+        byte[] ab = new byte[length];
+        System.arraycopy(data.array(), position, ab, 0, ab.length);
+        data.position(position + length);
         return ab;
     }
 
@@ -239,6 +303,35 @@ public class MySQLMessage {
             return s;
         } else {
             position++;
+            return null;
+        }
+    }
+    
+    public static String readStringWithNull(ByteBuffer data) {
+        int position = data.position();
+        int length = data.limit();
+        if (position >= length) {
+            return null;
+        }
+        
+        int offset = -1;
+        for (int i = position; i < length; i++) {
+            if (data.get(i) == 0) {
+                offset = i;
+                break;
+            }
+        }
+        if (offset == -1) {
+            String s = new String(data.array(), position, length - position);
+            data.position(length);
+            return s;
+        }
+        if (offset > position) {
+            String s = new String(data.array(), position, offset - position);
+            data.position(offset + 1);
+            return s;
+        } else {
+            data.position(position + 1);
             return null;
         }
     }

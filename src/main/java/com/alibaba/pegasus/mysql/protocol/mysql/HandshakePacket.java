@@ -15,6 +15,10 @@
  */
 package com.alibaba.pegasus.mysql.protocol.mysql;
 
+import java.nio.ByteBuffer;
+
+import com.alibaba.pegasus.net.Bits;
+
 /**
  * From server to client during initial handshake.
  * 
@@ -49,6 +53,21 @@ public class HandshakePacket extends MySQLPacket {
     public byte                serverCharsetIndex;
     public int                 serverStatus;
     public byte[]              restOfScrambleBuff;
+    
+    public void read(ByteBuffer data) {
+        packetLength = Bits.getUnsignedMediumL(data);
+        
+        packetId = data.get();
+        protocolVersion = data.get();
+        serverVersion = MySQLMessage.readBytesWithNull(data);
+        threadId = Bits.getUnsignedIntL(data);
+        seed = MySQLMessage.readBytesWithNull(data);
+        serverCapabilities = Bits.getUnsignedShortL(data);
+        serverCharsetIndex = data.get();
+        serverStatus = Bits.getUnsignedShortL(data);
+        data.position(data.position() + 13);
+        restOfScrambleBuff = MySQLMessage.readBytesWithNull(data);
+    }
 
     public void read(byte[] data) {
         MySQLMessage mm = new MySQLMessage(data);
